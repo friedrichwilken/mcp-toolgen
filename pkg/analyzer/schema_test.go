@@ -214,7 +214,7 @@ func TestToGoName(t *testing.T) {
 	t.Skip("Skipping due to camelCase handling issues - needs fix")
 	analyzer := NewSchemaAnalyzer()
 
-	tests := []struct{
+	tests := []struct {
 		name  string
 		input string
 		want  string

@@ -165,7 +165,6 @@ func (c *{{.CRD.Kind}}Client) Create(ctx context.Context, obj *{{.CRD.Kind}}) er
 	handlersTemplate := `package {{.Package}}
 
 import (
-	"context"
 	"fmt"
 )
 
