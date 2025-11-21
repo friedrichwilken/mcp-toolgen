@@ -70,7 +70,8 @@ func (s *SchemaAnalyzer) AnalyzeSchema(schema *apiextensionsv1.JSONSchemaProps, 
 			requiredFields[required] = true
 		}
 
-		for propName, propSchema := range schema.Properties {
+		for propName := range schema.Properties {
+			propSchema := schema.Properties[propName]
 			propTypeName := s.generatePropertyTypeName(typeName, propName)
 			propInfo, err := s.AnalyzeSchema(&propSchema, propTypeName, propName)
 			if err != nil {
@@ -96,17 +97,21 @@ func (s *SchemaAnalyzer) AnalyzeSchema(schema *apiextensionsv1.JSONSchemaProps, 
 	return typeInfo, nil
 }
 
+const (
+	goTypeString = "string"
+)
+
 // getGoTypeFromSchema determines the appropriate Go type for a given schema
 //
 //nolint:gocyclo // Complex type mapping logic is necessary for comprehensive CRD schema support
 func (s *SchemaAnalyzer) getGoTypeFromSchema(schema *apiextensionsv1.JSONSchemaProps, typeName string) (string, error) {
 	switch schema.Type {
-	case "string":
+	case goTypeString:
 		if len(schema.Enum) > 0 {
 			// For enums, we could generate a custom type, but for simplicity use string
-			return "string", nil
+			return goTypeString, nil
 		}
-		return "string", nil
+		return goTypeString, nil
 
 	case "integer":
 		if schema.Format == "int64" {
@@ -144,7 +149,7 @@ func (s *SchemaAnalyzer) getGoTypeFromSchema(schema *apiextensionsv1.JSONSchemaP
 
 	case "":
 		// No type specified, check for other indicators
-		if schema.Properties != nil && len(schema.Properties) > 0 {
+		if len(schema.Properties) > 0 {
 			return typeName, nil
 		}
 		if schema.Items != nil {
@@ -233,7 +238,7 @@ func (typeInfo *GoTypeInfo) GetStructFields() []*GoTypeInfo {
 
 // IsComplexType returns true if this represents a complex type (struct)
 func (typeInfo *GoTypeInfo) IsComplexType() bool {
-	return typeInfo.Properties != nil && len(typeInfo.Properties) > 0
+	return len(typeInfo.Properties) > 0
 }
 
 // IsArrayType returns true if this represents an array type

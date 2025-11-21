@@ -31,12 +31,12 @@ func (w *FileWriter) WriteFile(filename, content string) error {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
-	filepath := filepath.Join(w.outputDir, filename)
+	filePath := filepath.Join(w.outputDir, filename)
 
 	// Check if file exists and we're not overwriting
 	if !w.overwriteFiles {
-		if _, err := os.Stat(filepath); err == nil {
-			return fmt.Errorf("file %s already exists and overwrite is disabled", filepath)
+		if _, err := os.Stat(filePath); err == nil {
+			return fmt.Errorf("file %s already exists and overwrite is disabled", filePath)
 		}
 	}
 
@@ -53,8 +53,8 @@ func (w *FileWriter) WriteFile(filename, content string) error {
 	}
 
 	// Write file
-	if err := os.WriteFile(filepath, []byte(finalContent), 0o644); err != nil {
-		return fmt.Errorf("failed to write file %s: %w", filepath, err)
+	if err := os.WriteFile(filePath, []byte(finalContent), 0o644); err != nil {
+		return fmt.Errorf("failed to write file %s: %w", filePath, err)
 	}
 
 	return nil
@@ -78,17 +78,17 @@ func (w *FileWriter) EnsureDirectory(dir string) error {
 
 // FileExists checks if a file exists in the output directory
 func (w *FileWriter) FileExists(filename string) bool {
-	filepath := filepath.Join(w.outputDir, filename)
-	_, err := os.Stat(filepath)
+	filePath := filepath.Join(w.outputDir, filename)
+	_, err := os.Stat(filePath)
 	return err == nil
 }
 
 // ReadFile reads a file from the output directory
 func (w *FileWriter) ReadFile(filename string) (string, error) {
-	filepath := filepath.Join(w.outputDir, filename)
-	content, err := os.ReadFile(filepath)
+	filePath := filepath.Join(w.outputDir, filename)
+	content, err := os.ReadFile(filePath)
 	if err != nil {
-		return "", fmt.Errorf("failed to read file %s: %w", filepath, err)
+		return "", fmt.Errorf("failed to read file %s: %w", filePath, err)
 	}
 	return string(content), nil
 }
@@ -138,6 +138,6 @@ func (w *FileWriter) SetOverwriteFiles(overwrite bool) {
 }
 
 // SetFormatCode sets whether to format Go code
-func (w *FileWriter) SetFormatCode(format bool) {
-	w.formatCode = format
+func (w *FileWriter) SetFormatCode(formatCode bool) {
+	w.formatCode = formatCode
 }
