@@ -93,7 +93,7 @@ code-quality: deps auto-fix ## Run all code quality checks with auto-fixes
 check: lint vet test ## Check code without making changes (for CI)
 
 # Testing targets
-test: ## Run all tests
+test: setup-envtest ## Run all tests
 	go test -v ./...
 
 test-unit: ## Run unit tests only
@@ -102,9 +102,8 @@ test-unit: ## Run unit tests only
 test-integration: ## Run integration tests only
 	go test -v ./test/integration/...
 
-test-e2e: ## Run end-to-end tests (requires envtest)
+test-e2e: setup-envtest ## Run end-to-end tests (requires envtest)
 	@echo "Running E2E tests (may take a few minutes)..."
-	@echo "Note: Run 'make setup-envtest' once if tests fail with envtest errors"
 	go test -v -timeout=10m ./test/e2e/...
 
 setup-envtest: ## Install envtest binaries for E2E tests
