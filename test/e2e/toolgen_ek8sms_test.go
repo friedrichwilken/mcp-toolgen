@@ -99,9 +99,10 @@ func findEK8SMSDirectory(t *testing.T) string {
 	// Try to find ek8sms relative to current location
 	// Assuming mcp-toolgen and ek8sms are sibling directories
 	possiblePaths := []string{
-		"../../../extendable-kubernetes-mcp-server",
-		"../../extendable-kubernetes-mcp-server",
-		filepath.Join(os.Getenv("HOME"), "claude-playroom", "extendable-kubernetes-mcp-server"),
+		"../../../extendable-kubernetes-mcp-server",        // local dev: from test/e2e/ up to workspace
+		"../../extendable-kubernetes-mcp-server",           // local dev: from test/ up to workspace
+		"../extendable-kubernetes-mcp-server",              // CI: sibling in workspace
+		filepath.Join(os.Getenv("HOME"), "claude-playroom", "extendable-kubernetes-mcp-server"), // local dev: absolute
 	}
 
 	for _, path := range possiblePaths {
