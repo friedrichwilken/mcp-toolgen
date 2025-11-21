@@ -10,7 +10,7 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 # Configuration
 ENVTEST_K8S_VERSION="1.34.0"
-SETUP_ENVTEST_VERSION="v0.22.4"
+SETUP_ENVTEST_VERSION="latest"
 
 # Setup directories
 ENVTEST_DIR="${PROJECT_ROOT}/test/envtest"
