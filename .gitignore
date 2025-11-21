@@ -47,3 +47,6 @@ coverage.html
 
 # Log files
 *.log
+
+# Envtest binaries and tools
+test/envtest/

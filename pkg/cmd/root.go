@@ -15,18 +15,20 @@ import (
 )
 
 var (
-	cfgFile        string
-	verbose        bool
-	dryRun         bool
-	overwrite      bool
-	crudOperations string
-	crdFile        string
-	crdDir         string
-	outputDir      string
-	outputBase     string
-	packageName    string
-	modulePath     string
-	templateDir    string
+	cfgFile         string
+	verbose         bool
+	dryRun          bool
+	overwrite       bool
+	crudOperations  string
+	crdFile         string
+	crdDir          string
+	outputDir       string
+	outputBase      string
+	packageName     string
+	modulePath      string
+	templateDir     string
+	registerToolset bool
+	modulesFilePath string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -85,6 +87,10 @@ func init() {
 	rootCmd.Flags().StringVar(&modulePath, "module-path", "github.com/example/project", "Go module path")
 	rootCmd.Flags().StringVar(&templateDir, "templates", "", "custom template directory (optional)")
 	rootCmd.Flags().StringVar(&crudOperations, "crud", "crud", "CRUD operations to generate (c=create, r=read, u=update, d=delete)")
+
+	// Registration flags
+	rootCmd.Flags().BoolVar(&registerToolset, "register", false, "automatically add import to modules.go after generation")
+	rootCmd.Flags().StringVar(&modulesFilePath, "modules-file", "", "path to modules.go file (defaults to <target-repo>/pkg/mcp/modules.go)")
 
 	// Mark required flags
 	_ = rootCmd.MarkFlagRequired("module-path") // Error only if flag doesn't exist (programming error)
@@ -363,6 +369,16 @@ func generateToolset(toolsetInfo *analyzer.ToolsetInfo, outputDir string) error 
 		fmt.Printf("Successfully generated toolset in %s\n", outputDir)
 	}
 
+	// Register toolset if --register flag is set
+	if registerToolset {
+		if err := registerToolsetImport(toolsetInfo.PackageName, outputDir); err != nil {
+			return fmt.Errorf("failed to register toolset: %w", err)
+		}
+		if verbose {
+			fmt.Printf("Successfully registered toolset in modules.go\n")
+		}
+	}
+
 	return nil
 }
 
@@ -389,4 +405,24 @@ func findCRDFiles(dir string) ([]string, error) {
 	})
 
 	return crdFiles, err
+}
+
+// registerToolsetImport adds the generated toolset import to modules.go
+func registerToolsetImport(packageName, outputDir string) error {
+	// Determine modules.go location
+	modulesPath, err := generator.DetermineModulesFilePath(outputDir, modulePath, modulesFilePath)
+	if err != nil {
+		return err
+	}
+
+	// Construct import path
+	importPath := filepath.Join(modulePath, "pkg", packageName)
+
+	if verbose {
+		fmt.Printf("Registering toolset: %s\n", importPath)
+		fmt.Printf("In modules file: %s\n", modulesPath)
+	}
+
+	// Register the import
+	return generator.RegisterInModulesFile(modulesPath, importPath)
 }
