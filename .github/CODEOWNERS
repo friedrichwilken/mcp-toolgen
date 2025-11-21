@@ -1,0 +1,14 @@
+# CODEOWNERS for mcp-toolgen
+# Each line is a file pattern followed by one or more owners
+
+# Default owner for everything
+* @friedrichwilken
+
+# Core functionality
+/pkg/analyzer/ @friedrichwilken
+/pkg/generator/ @friedrichwilken
+/pkg/cmd/ @friedrichwilken
+
+# CI/CD and configuration
+/.github/ @friedrichwilken
+/Makefile @friedrichwilken
