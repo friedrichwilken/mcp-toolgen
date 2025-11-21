@@ -39,8 +39,11 @@ func RegisterInModulesFile(modulesFilePath, importPath string) error {
 	}
 
 	// Insert new import after the last import
-	newLines := append(lines[:lastImportIdx+1], append([]string{importLine}, lines[lastImportIdx+1:]...)...)
-	newContent := strings.Join(newLines, "\n")
+	result := make([]string, 0, len(lines)+1)
+	result = append(result, lines[:lastImportIdx+1]...)
+	result = append(result, importLine)
+	result = append(result, lines[lastImportIdx+1:]...)
+	newContent := strings.Join(result, "\n")
 
 	// Format the Go code
 	formatted, err := format.Source([]byte(newContent))
@@ -50,7 +53,7 @@ func RegisterInModulesFile(modulesFilePath, importPath string) error {
 	}
 
 	// Write back to file
-	if err := os.WriteFile(modulesFilePath, formatted, 0644); err != nil {
+	if err := os.WriteFile(modulesFilePath, formatted, 0o644); err != nil {
 		return fmt.Errorf("failed to write modules.go: %w", err)
 	}
 
