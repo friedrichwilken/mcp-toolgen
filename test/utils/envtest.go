@@ -4,6 +4,7 @@ package utils
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -28,18 +29,23 @@ type EnvtestEnvironment struct {
 
 // NewEnvtestEnvironment creates and starts a new envtest environment.
 // This starts a real etcd and kube-apiserver for integration testing.
+// Automatically discovers envtest binaries without requiring manual env.sh sourcing.
 func NewEnvtestEnvironment(t *testing.T) *EnvtestEnvironment {
 	t.Helper()
+
+	// Automatically find envtest binaries
+	binaryAssetsDir := findEnvtestBinaries(t)
 
 	// Create scheme with CRD support
 	s := runtime.NewScheme()
 	require.NoError(t, scheme.AddToScheme(s), "Failed to add core scheme")
 	require.NoError(t, apiextensionsv1.AddToScheme(s), "Failed to add apiextensions scheme")
 
-	// Setup envtest
+	// Setup envtest with explicit binary path
 	testEnv := &envtest.Environment{
 		CRDDirectoryPaths:     []string{}, // CRDs will be applied programmatically
 		ErrorIfCRDPathMissing: false,
+		BinaryAssetsDirectory: binaryAssetsDir, // Automatically discovered
 	}
 
 	cfg, err := testEnv.Start()
@@ -154,4 +160,79 @@ users:
 
 	WriteTestFile(t, tempDir, "kubeconfig", kubeconfig)
 	return kubeconfigPath
+}
+
+// findEnvtestBinaries automatically discovers envtest binaries.
+// Search order:
+// 1. KUBEBUILDER_ASSETS environment variable (if set)
+// 2. Project's test/envtest/bin/k8s directory
+// 3. Empty string (envtest will attempt automatic discovery)
+func findEnvtestBinaries(t *testing.T) string {
+	t.Helper()
+
+	// 1. Check KUBEBUILDER_ASSETS environment variable first
+	if assets := os.Getenv("KUBEBUILDER_ASSETS"); assets != "" {
+		t.Logf("Using envtest binaries from KUBEBUILDER_ASSETS: %s", assets)
+		return assets
+	}
+
+	// 2. Look for binaries in project's test/envtest/bin/k8s directory
+	projectRoot := findProjectRoot(t)
+	k8sDir := filepath.Join(projectRoot, "test", "envtest", "bin", "k8s")
+
+	if entries, err := os.ReadDir(k8sDir); err == nil && len(entries) > 0 {
+		// Use the first version directory found (e.g., 1.34.0-darwin-arm64)
+		for _, entry := range entries {
+			if entry.IsDir() {
+				binPath := filepath.Join(k8sDir, entry.Name())
+				// Verify it contains the required binaries
+				if hasRequiredBinaries(binPath) {
+					t.Logf("Using envtest binaries from: %s", binPath)
+					return binPath
+				}
+			}
+		}
+	}
+
+	// 3. Fall back to empty string (envtest will try to download or find them)
+	t.Log("No envtest binaries found locally, envtest will attempt automatic discovery")
+	t.Log("Run 'make setup-envtest' to install binaries for faster test execution")
+	return ""
+}
+
+// hasRequiredBinaries checks if a directory contains the required envtest binaries.
+func hasRequiredBinaries(dir string) bool {
+	required := []string{"kube-apiserver", "etcd", "kubectl"}
+	for _, binary := range required {
+		if _, err := os.Stat(filepath.Join(dir, binary)); err != nil {
+			return false
+		}
+	}
+	return true
+}
+
+// findProjectRoot walks up the directory tree to find the project root (go.mod location).
+func findProjectRoot(t *testing.T) string {
+	t.Helper()
+
+	// Start from current working directory
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get working directory: %v", err)
+	}
+
+	// Walk up until we find go.mod
+	dir := cwd
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			// Reached filesystem root without finding go.mod
+			t.Fatalf("Could not find project root (no go.mod found)")
+		}
+		dir = parent
+	}
 }

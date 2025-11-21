@@ -104,13 +104,8 @@ test-integration: ## Run integration tests only
 
 test-e2e: ## Run end-to-end tests (requires envtest)
 	@echo "Running E2E tests (may take a few minutes)..."
-	@if [ -f ./test/envtest/env.sh ]; then \
-		echo "Using envtest binaries from ./test/envtest/"; \
-		. ./test/envtest/env.sh && go test -v -timeout=10m ./test/e2e/...; \
-	else \
-		echo "Note: Run 'make setup-envtest' first for better reliability"; \
-		go test -v -timeout=10m ./test/e2e/...; \
-	fi
+	@echo "Note: Run 'make setup-envtest' once if tests fail with envtest errors"
+	go test -v -timeout=10m ./test/e2e/...
 
 setup-envtest: ## Install envtest binaries for E2E tests
 	@echo "Setting up envtest binaries..."
