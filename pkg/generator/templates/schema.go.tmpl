@@ -1,0 +1,297 @@
+package {{.Package}}
+
+import (
+	"github.com/modelcontextprotocol/go-sdk/api"
+)
+
+{{range $operation := .Operations}}
+{{if $.IncludeComments}}
+// {{$operation}}{{$.CRD.Kind}}Schema returns the JSON schema for {{$operation}} {{$.CRD.Kind}} operations
+{{end}}
+func {{$operation}}{{$.CRD.Kind}}Schema() api.JSONSchema {
+	{{if eq $operation "create"}}
+	return api.JSONSchema{
+		Type: "object",
+		Properties: map[string]api.JSONSchema{
+			"namespace": {
+				Type:        "string",
+				Description: "Kubernetes namespace (optional, defaults to 'default')",
+			},
+			"cluster": {
+				Type:        "string",
+				Description: "Target cluster name (optional, uses default cluster if not specified)",
+			},
+			"args": {
+				Type:        "object",
+				Description: "{{$.CRD.Kind}} resource specification",
+				Properties: map[string]api.JSONSchema{
+					"metadata": {
+						Type: "object",
+						Properties: map[string]api.JSONSchema{
+							"name": {
+								Type:        "string",
+								Description: "Name of the {{$.CRD.Kind}}",
+							},
+							"namespace": {
+								Type:        "string",
+								Description: "Namespace of the {{$.CRD.Kind}}",
+							},
+							"labels": {
+								Type:        "object",
+								Description: "Labels for the {{$.CRD.Kind}}",
+								AdditionalProperties: &api.JSONSchema{
+									Type: "string",
+								},
+							},
+							"annotations": {
+								Type:        "object",
+								Description: "Annotations for the {{$.CRD.Kind}}",
+								AdditionalProperties: &api.JSONSchema{
+									Type: "string",
+								},
+							},
+						},
+						Required: []string{"name"},
+					},
+					{{if $.SpecType}}
+					"spec": {
+						Type:        "object",
+						Description: "{{$.CRD.Kind}} specification",
+						{{if $.IncludeComments}}
+						// TODO: Add detailed spec schema based on CRD
+						{{end}}
+					},
+					{{end}}
+				},
+				Required: []string{"metadata"},
+			},
+		},
+		Required: []string{"args"},
+	}
+	{{else if eq $operation "get"}}
+	return api.JSONSchema{
+		Type: "object",
+		Properties: map[string]api.JSONSchema{
+			"name": {
+				Type:        "string",
+				Description: "Name of the {{$.CRD.Kind}} to retrieve",
+			},
+			"namespace": {
+				Type:        "string",
+				Description: "Kubernetes namespace (optional, defaults to 'default')",
+			},
+			"cluster": {
+				Type:        "string",
+				Description: "Target cluster name (optional, uses default cluster if not specified)",
+			},
+		},
+		Required: []string{"name"},
+	}
+	{{else if eq $operation "list"}}
+	return api.JSONSchema{
+		Type: "object",
+		Properties: map[string]api.JSONSchema{
+			"namespace": {
+				Type:        "string",
+				Description: "Kubernetes namespace to list from (optional, defaults to 'default')",
+			},
+			"cluster": {
+				Type:        "string",
+				Description: "Target cluster name (optional, uses default cluster if not specified)",
+			},
+			"labelSelector": {
+				Type:        "string",
+				Description: "Label selector to filter {{$.CRD.Kind}} resources (optional)",
+			},
+		},
+	}
+	{{else if eq $operation "update"}}
+	return api.JSONSchema{
+		Type: "object",
+		Properties: map[string]api.JSONSchema{
+			"namespace": {
+				Type:        "string",
+				Description: "Kubernetes namespace (optional, defaults to 'default')",
+			},
+			"cluster": {
+				Type:        "string",
+				Description: "Target cluster name (optional, uses default cluster if not specified)",
+			},
+			"args": {
+				Type:        "object",
+				Description: "{{$.CRD.Kind}} resource specification",
+				Properties: map[string]api.JSONSchema{
+					"metadata": {
+						Type: "object",
+						Properties: map[string]api.JSONSchema{
+							"name": {
+								Type:        "string",
+								Description: "Name of the {{$.CRD.Kind}}",
+							},
+							"namespace": {
+								Type:        "string",
+								Description: "Namespace of the {{$.CRD.Kind}}",
+							},
+							"labels": {
+								Type:        "object",
+								Description: "Labels for the {{$.CRD.Kind}}",
+								AdditionalProperties: &api.JSONSchema{
+									Type: "string",
+								},
+							},
+							"annotations": {
+								Type:        "object",
+								Description: "Annotations for the {{$.CRD.Kind}}",
+								AdditionalProperties: &api.JSONSchema{
+									Type: "string",
+								},
+							},
+							"resourceVersion": {
+								Type:        "string",
+								Description: "Resource version for optimistic concurrency",
+							},
+						},
+						Required: []string{"name"},
+					},
+					{{if $.SpecType}}
+					"spec": {
+						Type:        "object",
+						Description: "{{$.CRD.Kind}} specification",
+						{{if $.IncludeComments}}
+						// TODO: Add detailed spec schema based on CRD
+						{{end}}
+					},
+					{{end}}
+				},
+				Required: []string{"metadata"},
+			},
+		},
+		Required: []string{"args"},
+	}
+	{{else if eq $operation "delete"}}
+	return api.JSONSchema{
+		Type: "object",
+		Properties: map[string]api.JSONSchema{
+			"name": {
+				Type:        "string",
+				Description: "Name of the {{$.CRD.Kind}} to delete",
+			},
+			"namespace": {
+				Type:        "string",
+				Description: "Kubernetes namespace (optional, defaults to 'default')",
+			},
+			"cluster": {
+				Type:        "string",
+				Description: "Target cluster name (optional, uses default cluster if not specified)",
+			},
+			"gracePeriodSeconds": {
+				Type:        "integer",
+				Description: "Grace period for deletion (optional)",
+				Minimum:     0,
+			},
+		},
+		Required: []string{"name"},
+	}
+	{{end}}
+}
+
+{{end}}
+
+{{if .IncludeComments}}
+// Common schema definitions
+{{end}}
+
+{{if .IncludeComments}}
+// metadataSchema returns the common metadata schema
+{{end}}
+func metadataSchema() api.JSONSchema {
+	return api.JSONSchema{
+		Type: "object",
+		Properties: map[string]api.JSONSchema{
+			"name": {
+				Type:        "string",
+				Description: "Name of the resource",
+			},
+			"namespace": {
+				Type:        "string",
+				Description: "Namespace of the resource",
+			},
+			"labels": {
+				Type:        "object",
+				Description: "Labels for the resource",
+				AdditionalProperties: &api.JSONSchema{
+					Type: "string",
+				},
+			},
+			"annotations": {
+				Type:        "object",
+				Description: "Annotations for the resource",
+				AdditionalProperties: &api.JSONSchema{
+					Type: "string",
+				},
+			},
+		},
+		Required: []string{"name"},
+	}
+}
+
+{{if .SpecType}}
+{{if .IncludeComments}}
+// {{.CRD.Kind | ToLower}}SpecSchema returns the schema for {{.CRD.Kind}} spec
+{{end}}
+func {{.CRD.Kind | ToLower}}SpecSchema() api.JSONSchema {
+	return api.JSONSchema{
+		Type:        "object",
+		Description: "{{.CRD.Kind}} specification",
+		Properties: map[string]api.JSONSchema{
+			{{range $field := .SpecType.GetStructFields}}
+			"{{$field.JSONName}}": {
+				{{if $field.IsPrimitiveType}}
+				Type:        "{{$field.GoType}}",
+				{{else if $field.IsArrayType}}
+				Type:        "array",
+				Items:       &api.JSONSchema{Type: "object"},
+				{{else}}
+				Type:        "object",
+				{{end}}
+				{{if $field.Description}}
+				Description: "{{$field.Description}}",
+				{{end}}
+			},
+			{{end}}
+		},
+		{{if .IncludeComments}}
+		// Add required fields based on CRD schema
+		{{end}}
+	}
+}
+{{end}}
+
+{{if .StatusType}}
+{{if .IncludeComments}}
+// {{.CRD.Kind | ToLower}}StatusSchema returns the schema for {{.CRD.Kind}} status
+{{end}}
+func {{.CRD.Kind | ToLower}}StatusSchema() api.JSONSchema {
+	return api.JSONSchema{
+		Type:        "object",
+		Description: "{{.CRD.Kind}} status",
+		Properties: map[string]api.JSONSchema{
+			{{range $field := .StatusType.GetStructFields}}
+			"{{$field.JSONName}}": {
+				{{if $field.IsPrimitiveType}}
+				Type:        "{{$field.GoType}}",
+				{{else if $field.IsArrayType}}
+				Type:        "array",
+				Items:       &api.JSONSchema{Type: "object"},
+				{{else}}
+				Type:        "object",
+				{{end}}
+				{{if $field.Description}}
+				Description: "{{$field.Description}}",
+				{{end}}
+			},
+			{{end}}
+		},
+	}
+}
+{{end}}

@@ -1,0 +1,46 @@
+package {{.Package}}
+
+import (
+	"github.com/modelcontextprotocol/go-sdk/api"
+	internalk8s "github.com/friedrichwilken/extendable-kubernetes-mcp-server/internal/k8s"
+)
+
+// {{.CRD.Kind}}Toolset provides MCP tools for managing {{.CRD.Kind}} custom resources
+type {{.CRD.Kind}}Toolset struct{}
+
+// GetName returns the name of this toolset
+func (t *{{.CRD.Kind}}Toolset) GetName() string {
+	return "{{.Toolset.GetToolsetName}}"
+}
+
+// GetDescription returns the description of this toolset
+func (t *{{.CRD.Kind}}Toolset) GetDescription() string {
+	return "{{.Toolset.GetToolsetDescription}}"
+}
+
+// GetTools returns all MCP tools provided by this toolset
+func (t *{{.CRD.Kind}}Toolset) GetTools(o internalk8s.Openshift) []api.ServerTool {
+	return []api.ServerTool{
+		{{- range $operation := .Operations}}
+		{{generateMethodName $operation $.CRD.Plural | ToLower}}Tool(),
+		{{- end}}
+	}
+}
+
+{{range $operation := .Operations}}
+// {{generateMethodName $operation $.CRD.Plural | ToLower}}Tool creates the MCP tool for {{$operation}} operations
+func {{generateMethodName $operation $.CRD.Plural | ToLower}}Tool() api.ServerTool {
+	return api.ServerTool{
+		Name:        "{{generateToolName $operation $.CRD.Plural}}",
+		Description: "{{$operation | ToTitle}} a {{$.CRD.Kind}} custom resource",
+		InputSchema: {{$operation}}{{$.CRD.Kind}}Schema(),
+	}
+}
+
+{{end}}
+
+// init registers this toolset
+func init() {
+	// This will be called when the package is imported
+	// The actual registration happens in the main server
+}

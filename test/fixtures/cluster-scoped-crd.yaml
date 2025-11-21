@@ -1,0 +1,97 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: globalconfigs.config.example.com
+spec:
+  group: config.example.com
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              domain:
+                type: string
+                pattern: '^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9](\.[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9])*$'
+              endpoints:
+                type: array
+                items:
+                  type: string
+                  format: uri
+              features:
+                type: object
+                properties:
+                  logging:
+                    type: object
+                    properties:
+                      enabled:
+                        type: boolean
+                        default: true
+                      level:
+                        type: string
+                        enum: ["debug", "info", "warn", "error"]
+                        default: "info"
+                  monitoring:
+                    type: object
+                    properties:
+                      enabled:
+                        type: boolean
+                        default: false
+                      interval:
+                        type: string
+                        pattern: '^[0-9]+[smh]$'
+                        default: "30s"
+                  backup:
+                    type: object
+                    properties:
+                      enabled:
+                        type: boolean
+                        default: false
+                      schedule:
+                        type: string
+                        pattern: '^(@(annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\d+(ns|us|µs|ms|s|m|h))+)|((((\d+,)+\d+|(\d+(\/|-)\d+)|\d+|\*) ?){5,7})$'
+              globalSettings:
+                type: object
+                additionalProperties:
+                  type: string
+            required:
+            - domain
+          status:
+            type: object
+            properties:
+              phase:
+                type: string
+                enum: ["Pending", "Ready", "Failed"]
+              conditions:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                    status:
+                      type: string
+                      enum: ["True", "False", "Unknown"]
+                    reason:
+                      type: string
+                    message:
+                      type: string
+                    lastUpdateTime:
+                      type: string
+                      format: date-time
+              lastReconcileTime:
+                type: string
+                format: date-time
+  scope: Cluster
+  names:
+    plural: globalconfigs
+    singular: globalconfig
+    kind: GlobalConfig
+    shortNames:
+    - gc
+    - gconf

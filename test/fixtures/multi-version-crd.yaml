@@ -1,0 +1,215 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: databases.storage.example.com
+spec:
+  group: storage.example.com
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: false
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              engine:
+                type: string
+                enum: ["mysql", "postgres"]
+              version:
+                type: string
+              size:
+                type: string
+                enum: ["small", "medium", "large"]
+            required:
+            - engine
+          status:
+            type: object
+            properties:
+              ready:
+                type: boolean
+  - name: v1beta1
+    served: true
+    storage: false
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              engine:
+                type: string
+                enum: ["mysql", "postgres", "mongodb"]
+              version:
+                type: string
+              instanceClass:
+                type: string
+                enum: ["db.t3.micro", "db.t3.small", "db.t3.medium", "db.t3.large"]
+              storage:
+                type: object
+                properties:
+                  size:
+                    type: string
+                    pattern: '^[0-9]+Gi$'
+                  storageClass:
+                    type: string
+                required:
+                - size
+              backup:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                    default: true
+                  retentionDays:
+                    type: integer
+                    minimum: 1
+                    maximum: 365
+                    default: 7
+            required:
+            - engine
+            - instanceClass
+            - storage
+          status:
+            type: object
+            properties:
+              phase:
+                type: string
+                enum: ["Pending", "Creating", "Ready", "Updating", "Deleting", "Failed"]
+              endpoint:
+                type: string
+              conditions:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                    status:
+                      type: string
+                      enum: ["True", "False", "Unknown"]
+                    reason:
+                      type: string
+                    message:
+                      type: string
+  - name: v1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              engine:
+                type: string
+                enum: ["mysql", "postgres", "mongodb", "redis"]
+              version:
+                type: string
+              instanceClass:
+                type: string
+                enum: ["db.t3.micro", "db.t3.small", "db.t3.medium", "db.t3.large", "db.r5.large", "db.r5.xlarge"]
+              storage:
+                type: object
+                properties:
+                  size:
+                    type: string
+                    pattern: '^[0-9]+Gi$'
+                  storageClass:
+                    type: string
+                  encrypted:
+                    type: boolean
+                    default: false
+                required:
+                - size
+              networking:
+                type: object
+                properties:
+                  publicAccess:
+                    type: boolean
+                    default: false
+                  allowedCIDRs:
+                    type: array
+                    items:
+                      type: string
+                      pattern: '^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\/([0-9]|[1-2][0-9]|3[0-2])$'
+              backup:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                    default: true
+                  retentionDays:
+                    type: integer
+                    minimum: 1
+                    maximum: 365
+                    default: 7
+                  schedule:
+                    type: string
+                    pattern: '^(@(annually|yearly|monthly|weekly|daily|hourly|reboot))|(@every (\d+(ns|us|µs|ms|s|m|h))+)|((((\d+,)+\d+|(\d+(\/|-)\d+)|\d+|\*) ?){5,7})$'
+                    default: "0 2 * * *"
+              monitoring:
+                type: object
+                properties:
+                  enabled:
+                    type: boolean
+                    default: true
+                  alerting:
+                    type: boolean
+                    default: false
+              maintenance:
+                type: object
+                properties:
+                  autoMinorVersionUpgrade:
+                    type: boolean
+                    default: true
+                  preferredMaintenanceWindow:
+                    type: string
+                    pattern: '^(sun|mon|tue|wed|thu|fri|sat):[0-2][0-9]:[0-5][0-9]-(sun|mon|tue|wed|thu|fri|sat):[0-2][0-9]:[0-5][0-9]$'
+            required:
+            - engine
+            - instanceClass
+            - storage
+          status:
+            type: object
+            properties:
+              phase:
+                type: string
+                enum: ["Pending", "Creating", "Ready", "Updating", "Deleting", "Failed"]
+              endpoint:
+                type: string
+              port:
+                type: integer
+              conditions:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                    status:
+                      type: string
+                      enum: ["True", "False", "Unknown"]
+                    reason:
+                      type: string
+                    message:
+                      type: string
+                    lastTransitionTime:
+                      type: string
+                      format: date-time
+              lastBackupTime:
+                type: string
+                format: date-time
+              observedGeneration:
+                type: integer
+  scope: Namespaced
+  names:
+    plural: databases
+    singular: database
+    kind: Database
+    shortNames:
+    - db

@@ -1,0 +1,82 @@
+# GolangCI-Lint configuration for mcp-toolgen
+# Ensures clean, maintainable code that follows Go best practices
+# Focus on auto-fixable linters for better developer experience
+
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    # Error checking linters
+    - errcheck       # Check error returns
+    - govet          # Standard Go vet checks
+    - ineffassign    # Detect ineffectual assignments
+    - staticcheck    # Advanced static analysis (includes gosimple, unused)
+    - unused         # Find unused code
+
+    # Code quality linters
+    - bodyclose      # Check HTTP response body closes
+    - goconst        # Find repeated strings
+    - gocritic       # Comprehensive code analysis
+    - gocyclo        # Cyclomatic complexity
+    - gosec          # Security vulnerability detection
+    - lll            # Line length checking
+    - misspell       # Spell checking
+    - predeclared    # Find shadowed predeclared identifiers
+    - unparam        # Find unused function parameters
+
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - performance
+      - style
+    disabled-checks:
+      - emptyStringTest  # Style preference
+      - ifElseChain      # Sometimes clearer than switch
+
+  lll:
+    line-length: 160
+
+  misspell:
+    locale: US
+
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+  exclude-rules:
+    # Exclude some linters from running on test files
+    - path: _test\.go
+      linters:
+        - goconst
+        - lll
+        - gosec
+        - gocyclo
+
+    # Exclude shadow checking for err variables (common pattern)
+    - text: "shadow: declaration of \"err\""
+      linters:
+        - govet
+
+    # Exclude empty branch warnings for deferred close with error checking
+    - text: "SA9003: empty branch"
+      linters:
+        - staticcheck
+
+    # Exclude security warnings for code generators (expected to read/write files)
+    - path: (generator|analyzer)/
+      text: "G304|G301|G306"
+      linters:
+        - gosec

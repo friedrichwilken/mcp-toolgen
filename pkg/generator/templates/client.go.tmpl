@@ -1,0 +1,192 @@
+package {{.Package}}
+
+import (
+	"context"
+	"fmt"
+
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+{{if .IncludeComments}}
+// {{.CRD.Kind}}Client provides operations for {{.CRD.Kind}} custom resources
+{{end}}
+type {{.CRD.Kind}}Client struct {
+	client    client.Client
+	namespace string
+}
+
+{{if .IncludeComments}}
+// New{{.CRD.Kind}}Client creates a new client for {{.CRD.Kind}} resources
+{{end}}
+func New{{.CRD.Kind}}Client(c client.Client, namespace string) *{{.CRD.Kind}}Client {
+	return &{{.CRD.Kind}}Client{
+		client:    c,
+		namespace: namespace,
+	}
+}
+
+{{if .IncludeComments}}
+// Create creates a new {{.CRD.Kind}} resource
+{{end}}
+func (c *{{.CRD.Kind}}Client) Create(ctx context.Context, {{.CRD.Kind | ToLower}} *{{.CRD.Kind}}) error {
+	if {{.CRD.Kind | ToLower}}.Namespace == "" {
+		{{.CRD.Kind | ToLower}}.Namespace = c.namespace
+	}
+
+	{{if .IncludeComments}}
+	// Set the GVK for the resource
+	{{end}}
+	{{.CRD.Kind | ToLower}}.SetGroupVersionKind({{.CRD.Kind | ToLower}}.GroupVersionKind())
+
+	return c.client.Create(ctx, {{.CRD.Kind | ToLower}})
+}
+
+{{if .IncludeComments}}
+// Get retrieves a {{.CRD.Kind}} resource by name
+{{end}}
+func (c *{{.CRD.Kind}}Client) Get(ctx context.Context, name string) (*{{.CRD.Kind}}, error) {
+	{{.CRD.Kind | ToLower}} := &{{.CRD.Kind}}{}
+	key := types.NamespacedName{
+		Namespace: c.namespace,
+		Name:      name,
+	}
+
+	if err := c.client.Get(ctx, key, {{.CRD.Kind | ToLower}}); err != nil {
+		return nil, err
+	}
+
+	return {{.CRD.Kind | ToLower}}, nil
+}
+
+{{if .IncludeComments}}
+// List retrieves all {{.CRD.Kind}} resources in the namespace
+{{end}}
+func (c *{{.CRD.Kind}}Client) List(ctx context.Context, opts ...client.ListOption) (*{{.CRD.ListKind}}, error) {
+	list := &{{.CRD.ListKind}}{}
+
+	{{if .IncludeComments}}
+	// Add namespace to list options if not already specified
+	{{end}}
+	listOpts := []client.ListOption{client.InNamespace(c.namespace)}
+	listOpts = append(listOpts, opts...)
+
+	if err := c.client.List(ctx, list, listOpts...); err != nil {
+		return nil, err
+	}
+
+	return list, nil
+}
+
+{{if .IncludeComments}}
+// Update updates an existing {{.CRD.Kind}} resource
+{{end}}
+func (c *{{.CRD.Kind}}Client) Update(ctx context.Context, {{.CRD.Kind | ToLower}} *{{.CRD.Kind}}) error {
+	if {{.CRD.Kind | ToLower}}.Namespace == "" {
+		{{.CRD.Kind | ToLower}}.Namespace = c.namespace
+	}
+
+	{{if .IncludeComments}}
+	// Set the GVK for the resource
+	{{end}}
+	{{.CRD.Kind | ToLower}}.SetGroupVersionKind({{.CRD.Kind | ToLower}}.GroupVersionKind())
+
+	return c.client.Update(ctx, {{.CRD.Kind | ToLower}})
+}
+
+{{if .IncludeComments}}
+// UpdateStatus updates the status of a {{.CRD.Kind}} resource
+{{end}}
+func (c *{{.CRD.Kind}}Client) UpdateStatus(ctx context.Context, {{.CRD.Kind | ToLower}} *{{.CRD.Kind}}) error {
+	if {{.CRD.Kind | ToLower}}.Namespace == "" {
+		{{.CRD.Kind | ToLower}}.Namespace = c.namespace
+	}
+
+	{{if .IncludeComments}}
+	// Set the GVK for the resource
+	{{end}}
+	{{.CRD.Kind | ToLower}}.SetGroupVersionKind({{.CRD.Kind | ToLower}}.GroupVersionKind())
+
+	return c.client.Status().Update(ctx, {{.CRD.Kind | ToLower}})
+}
+
+{{if .IncludeComments}}
+// Delete deletes a {{.CRD.Kind}} resource by name
+{{end}}
+func (c *{{.CRD.Kind}}Client) Delete(ctx context.Context, name string, opts ...client.DeleteOption) error {
+	{{.CRD.Kind | ToLower}} := &{{.CRD.Kind}}{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: c.namespace,
+		},
+	}
+
+	{{if .IncludeComments}}
+	// Set the GVK for the resource
+	{{end}}
+	{{.CRD.Kind | ToLower}}.SetGroupVersionKind({{.CRD.Kind | ToLower}}.GroupVersionKind())
+
+	return c.client.Delete(ctx, {{.CRD.Kind | ToLower}}, opts...)
+}
+
+{{if .IncludeComments}}
+// Exists checks if a {{.CRD.Kind}} resource exists
+{{end}}
+func (c *{{.CRD.Kind}}Client) Exists(ctx context.Context, name string) (bool, error) {
+	_, err := c.Get(ctx, name)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+{{if .IncludeComments}}
+// Patch patches a {{.CRD.Kind}} resource
+{{end}}
+func (c *{{.CRD.Kind}}Client) Patch(ctx context.Context, {{.CRD.Kind | ToLower}} *{{.CRD.Kind}}, patch client.Patch, opts ...client.PatchOption) error {
+	if {{.CRD.Kind | ToLower}}.Namespace == "" {
+		{{.CRD.Kind | ToLower}}.Namespace = c.namespace
+	}
+
+	{{if .IncludeComments}}
+	// Set the GVK for the resource
+	{{end}}
+	{{.CRD.Kind | ToLower}}.SetGroupVersionKind({{.CRD.Kind | ToLower}}.GroupVersionKind())
+
+	return c.client.Patch(ctx, {{.CRD.Kind | ToLower}}, patch, opts...)
+}
+
+{{if .IncludeComments}}
+// ListAll retrieves all {{.CRD.Kind}} resources across all namespaces
+{{end}}
+func (c *{{.CRD.Kind}}Client) ListAll(ctx context.Context, opts ...client.ListOption) (*{{.CRD.ListKind}}, error) {
+	list := &{{.CRD.ListKind}}{}
+
+	if err := c.client.List(ctx, list, opts...); err != nil {
+		return nil, err
+	}
+
+	return list, nil
+}
+
+{{if .IncludeComments}}
+// WithNamespace returns a new client with a different namespace
+{{end}}
+func (c *{{.CRD.Kind}}Client) WithNamespace(namespace string) *{{.CRD.Kind}}Client {
+	return &{{.CRD.Kind}}Client{
+		client:    c.client,
+		namespace: namespace,
+	}
+}
+
+{{if .IncludeComments}}
+// GetNamespace returns the current namespace for this client
+{{end}}
+func (c *{{.CRD.Kind}}Client) GetNamespace() string {
+	return c.namespace
+}

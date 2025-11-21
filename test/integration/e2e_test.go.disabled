@@ -1,0 +1,307 @@
+package integration
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"unicode"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/friedrichwilken/mcp-toolgen/pkg/analyzer"
+	"github.com/friedrichwilken/mcp-toolgen/pkg/generator"
+)
+
+// Helper function to convert to PascalCase (same as in helpers.go)
+func toPascalCase(s string) string {
+	if s == "" {
+		return s
+	}
+
+	// Split on common separators
+	parts := strings.FieldsFunc(s, func(r rune) bool {
+		return r == '-' || r == '_' || r == '.' || unicode.IsSpace(r)
+	})
+
+	var result []string
+	for _, part := range parts {
+		if len(part) > 0 {
+			result = append(result, strings.Title(strings.ToLower(part)))
+		}
+	}
+
+	return strings.Join(result, "")
+}
+
+func TestEndToEndGeneration(t *testing.T) {
+	tests := []struct {
+		name        string
+		crdFile     string
+		packageName string
+		operations  []string
+	}{
+		{
+			name:        "simple widget CRD",
+			crdFile:     "../fixtures/simple-crd.yaml",
+			packageName: "widgets",
+			operations:  []string{"create", "get", "list", "update", "delete"},
+		},
+		{
+			name:        "complex application CRD",
+			crdFile:     "../fixtures/complex-crd.yaml",
+			packageName: "applications",
+			operations:  []string{"create", "get", "list"},
+		},
+		{
+			name:        "cluster-scoped CRD",
+			crdFile:     "../fixtures/cluster-scoped-crd.yaml",
+			packageName: "globalconfigs",
+			operations:  []string{"create", "get", "delete"},
+		},
+		{
+			name:        "multi-version CRD",
+			crdFile:     "../fixtures/multi-version-crd.yaml",
+			packageName: "databases",
+			operations:  []string{"create", "get", "list", "update", "delete"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create temporary directory for output
+			tempDir, err := os.MkdirTemp("", "e2e_test_"+tt.packageName)
+			require.NoError(t, err)
+			defer os.RemoveAll(tempDir)
+
+			// Step 1: Parse CRD using analyzer
+			crdAnalyzer := analyzer.NewCRDAnalyzer()
+			info, err := crdAnalyzer.ParseCRDFromFile(tt.crdFile)
+			require.NoError(t, err, "Failed to parse CRD file")
+
+			// Verify basic info
+			assert.NotEmpty(t, info.Kind)
+			assert.NotEmpty(t, info.Group)
+			assert.NotEmpty(t, info.Version)
+			assert.NotEmpty(t, info.Plural)
+			assert.NotEmpty(t, info.Singular)
+
+			// Step 2: Create schema analyzer (for future schema analysis)
+			schemaAnalyzer := analyzer.NewSchemaAnalyzer()
+			require.NotNil(t, schemaAnalyzer, "Failed to create schema analyzer")
+
+			// Step 3: Generate code using the generator's direct file method
+			config := &generator.GeneratorConfig{
+				OutputDir:       tempDir,
+				PackageName:     tt.packageName,
+				ModulePath:      "github.com/test/" + tt.packageName,
+				Operations:      tt.operations,
+				IncludeComments: true,
+				Overwrite:       true,
+			}
+
+			gen, err := generator.NewGenerator(config)
+			require.NoError(t, err, "Failed to create generator")
+
+			err = gen.GenerateFromCRDFile(tt.crdFile)
+			require.NoError(t, err, "Failed to generate code")
+
+			// Step 5: Verify generated files
+			expectedFiles := []string{
+				"toolset.go",
+				"types.go",
+				"client.go",
+				"handlers.go",
+				"schema.go",
+				"doc.go",
+			}
+
+			for _, filename := range expectedFiles {
+				path := filepath.Join(tempDir, filename)
+				assert.FileExists(t, path, "Expected file %s to exist", filename)
+
+				// Verify file is not empty and contains package declaration
+				content, err := os.ReadFile(path)
+				require.NoError(t, err, "Failed to read %s", filename)
+				assert.NotEmpty(t, content, "File %s should not be empty", filename)
+				assert.Contains(t, string(content), "package "+tt.packageName, "File %s should contain package declaration", filename)
+			}
+
+			// Step 6: Verify specific content in toolset.go
+			toolsetPath := filepath.Join(tempDir, "toolset.go")
+			toolsetContent, err := os.ReadFile(toolsetPath)
+			require.NoError(t, err)
+			toolsetStr := string(toolsetContent)
+
+			// Verify toolset struct
+			assert.Contains(t, toolsetStr, info.Kind+"Toolset", "Should contain toolset struct")
+
+			// Verify each operation is included
+			for _, op := range tt.operations {
+				switch op {
+				case "create":
+					assert.Contains(t, toolsetStr, "create"+info.Plural+"Tool", "Should contain create tool")
+				case "get":
+					assert.Contains(t, toolsetStr, "get"+info.Plural+"Tool", "Should contain get tool")
+				case "list":
+					assert.Contains(t, toolsetStr, "list"+info.Plural+"Tool", "Should contain list tool")
+				case "update":
+					assert.Contains(t, toolsetStr, "update"+info.Plural+"Tool", "Should contain update tool")
+				case "delete":
+					assert.Contains(t, toolsetStr, "delete"+info.Plural+"Tool", "Should contain delete tool")
+				}
+			}
+
+			// Step 7: Verify types.go contains expected types
+			typesPath := filepath.Join(tempDir, "types.go")
+			typesContent, err := os.ReadFile(typesPath)
+			require.NoError(t, err)
+			typesStr := string(typesContent)
+
+			// Should contain main type, spec, status, and list types
+			assert.Contains(t, typesStr, "type "+info.Kind, "Should contain main type")
+			// Most CRDs have spec and status, so check for them
+			assert.Contains(t, typesStr, "type "+info.Kind+"Spec", "Should contain spec type")
+			assert.Contains(t, typesStr, "type "+info.Kind+"Status", "Should contain status type")
+			assert.Contains(t, typesStr, "type "+info.Kind+"List", "Should contain list type")
+
+			// Should contain DeepCopy methods
+			assert.Contains(t, typesStr, "DeepCopy", "Should contain DeepCopy methods")
+
+			// Step 8: Verify handlers.go contains handler functions
+			handlersPath := filepath.Join(tempDir, "handlers.go")
+			handlersContent, err := os.ReadFile(handlersPath)
+			require.NoError(t, err)
+			handlersStr := string(handlersContent)
+
+			// Should contain handler functions for each operation
+			for _, op := range tt.operations {
+				// Handler functions follow the pattern: handle{Resource}{Operation}
+				resourcePascal := toPascalCase(info.Plural)
+				opPascal := toPascalCase(op)
+				handlerName := "handle" + resourcePascal + opPascal
+				assert.Contains(t, handlersStr, handlerName, "Should contain handler for %s", op)
+			}
+		})
+	}
+}
+
+func TestGenerationConsistency(t *testing.T) {
+	// Test that generating the same CRD multiple times produces identical output
+	crdFile := "../fixtures/simple-crd.yaml"
+
+	// Create two temporary directories
+	tempDir1, err := os.MkdirTemp("", "consistency_test_1")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir1)
+
+	tempDir2, err := os.MkdirTemp("", "consistency_test_2")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir2)
+
+	config1 := &generator.GeneratorConfig{
+		OutputDir:       tempDir1,
+		PackageName:     "widgets",
+		ModulePath:      "github.com/test/widgets",
+		Operations:      []string{"create", "get", "list"},
+		IncludeComments: true,
+		Overwrite:       true,
+	}
+
+	config2 := &generator.GeneratorConfig{
+		OutputDir:       tempDir2,
+		PackageName:     "widgets",
+		ModulePath:      "github.com/test/widgets",
+		Operations:      []string{"create", "get", "list"},
+		IncludeComments: true,
+		Overwrite:       true,
+	}
+
+	// Generate with first config
+	gen1, err := generator.NewGenerator(config1)
+	require.NoError(t, err)
+	err = gen1.GenerateFromCRDFile(crdFile)
+	require.NoError(t, err)
+
+	// Generate with second config
+	gen2, err := generator.NewGenerator(config2)
+	require.NoError(t, err)
+	err = gen2.GenerateFromCRDFile(crdFile)
+	require.NoError(t, err)
+
+	// Compare all generated files
+	expectedFiles := []string{
+		"toolset.go",
+		"types.go",
+		"client.go",
+		"handlers.go",
+		"schema.go",
+		"doc.go",
+	}
+
+	for _, filename := range expectedFiles {
+		path1 := filepath.Join(tempDir1, filename)
+		path2 := filepath.Join(tempDir2, filename)
+
+		content1, err := os.ReadFile(path1)
+		require.NoError(t, err)
+
+		content2, err := os.ReadFile(path2)
+		require.NoError(t, err)
+
+		assert.Equal(t, string(content1), string(content2), "Files %s should be identical", filename)
+	}
+}
+
+func TestErrorHandling(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "error_test")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	tests := []struct {
+		name        string
+		crdFile     string
+		expectError bool
+	}{
+		{
+			name:        "non-existent file",
+			crdFile:     "nonexistent.yaml",
+			expectError: true,
+		},
+		{
+			name:        "invalid yaml file",
+			crdFile:     "../fixtures/README.md", // Not a YAML file
+			expectError: true,
+		},
+		{
+			name:        "valid CRD",
+			crdFile:     "../fixtures/simple-crd.yaml",
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &generator.GeneratorConfig{
+				OutputDir:       tempDir,
+				PackageName:     "test",
+				ModulePath:      "github.com/test/test",
+				Operations:      []string{"create", "get"},
+				IncludeComments: true,
+				Overwrite:       true,
+			}
+
+			gen, err := generator.NewGenerator(config)
+			require.NoError(t, err)
+
+			err = gen.GenerateFromCRDFile(tt.crdFile)
+
+			if tt.expectError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
