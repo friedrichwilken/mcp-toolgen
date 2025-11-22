@@ -1,18 +1,18 @@
 package {{.Package}}
 
 import (
-	"github.com/modelcontextprotocol/go-sdk/api"
+	"github.com/google/jsonschema-go/jsonschema"
 )
 
 {{range $operation := .Operations}}
 {{if $.IncludeComments}}
 // {{$operation}}{{$.CRD.Kind}}Schema returns the JSON schema for {{$operation}} {{$.CRD.Kind}} operations
 {{end}}
-func {{$operation}}{{$.CRD.Kind}}Schema() api.JSONSchema {
+func {{$operation}}{{$.CRD.Kind}}Schema() *jsonschema.Schema {
 	{{if eq $operation "create"}}
-	return api.JSONSchema{
+	return &jsonschema.Schema{
 		Type: "object",
-		Properties: map[string]api.JSONSchema{
+		Properties: map[string]*jsonschema.Schema{
 			"namespace": {
 				Type:        "string",
 				Description: "Kubernetes namespace (optional, defaults to 'default')",
@@ -24,10 +24,10 @@ func {{$operation}}{{$.CRD.Kind}}Schema() api.JSONSchema {
 			"args": {
 				Type:        "object",
 				Description: "{{$.CRD.Kind}} resource specification",
-				Properties: map[string]api.JSONSchema{
+				Properties: map[string]*jsonschema.Schema{
 					"metadata": {
 						Type: "object",
-						Properties: map[string]api.JSONSchema{
+						Properties: map[string]*jsonschema.Schema{
 							"name": {
 								Type:        "string",
 								Description: "Name of the {{$.CRD.Kind}}",
@@ -39,16 +39,10 @@ func {{$operation}}{{$.CRD.Kind}}Schema() api.JSONSchema {
 							"labels": {
 								Type:        "object",
 								Description: "Labels for the {{$.CRD.Kind}}",
-								AdditionalProperties: &api.JSONSchema{
-									Type: "string",
-								},
 							},
 							"annotations": {
 								Type:        "object",
 								Description: "Annotations for the {{$.CRD.Kind}}",
-								AdditionalProperties: &api.JSONSchema{
-									Type: "string",
-								},
 							},
 						},
 						Required: []string{"name"},
@@ -70,9 +64,9 @@ func {{$operation}}{{$.CRD.Kind}}Schema() api.JSONSchema {
 		Required: []string{"args"},
 	}
 	{{else if eq $operation "get"}}
-	return api.JSONSchema{
+	return &jsonschema.Schema{
 		Type: "object",
-		Properties: map[string]api.JSONSchema{
+		Properties: map[string]*jsonschema.Schema{
 			"name": {
 				Type:        "string",
 				Description: "Name of the {{$.CRD.Kind}} to retrieve",
@@ -89,9 +83,9 @@ func {{$operation}}{{$.CRD.Kind}}Schema() api.JSONSchema {
 		Required: []string{"name"},
 	}
 	{{else if eq $operation "list"}}
-	return api.JSONSchema{
+	return &jsonschema.Schema{
 		Type: "object",
-		Properties: map[string]api.JSONSchema{
+		Properties: map[string]*jsonschema.Schema{
 			"namespace": {
 				Type:        "string",
 				Description: "Kubernetes namespace to list from (optional, defaults to 'default')",
@@ -107,9 +101,9 @@ func {{$operation}}{{$.CRD.Kind}}Schema() api.JSONSchema {
 		},
 	}
 	{{else if eq $operation "update"}}
-	return api.JSONSchema{
+	return &jsonschema.Schema{
 		Type: "object",
-		Properties: map[string]api.JSONSchema{
+		Properties: map[string]*jsonschema.Schema{
 			"namespace": {
 				Type:        "string",
 				Description: "Kubernetes namespace (optional, defaults to 'default')",
@@ -121,10 +115,10 @@ func {{$operation}}{{$.CRD.Kind}}Schema() api.JSONSchema {
 			"args": {
 				Type:        "object",
 				Description: "{{$.CRD.Kind}} resource specification",
-				Properties: map[string]api.JSONSchema{
+				Properties: map[string]*jsonschema.Schema{
 					"metadata": {
 						Type: "object",
-						Properties: map[string]api.JSONSchema{
+						Properties: map[string]*jsonschema.Schema{
 							"name": {
 								Type:        "string",
 								Description: "Name of the {{$.CRD.Kind}}",
@@ -136,16 +130,10 @@ func {{$operation}}{{$.CRD.Kind}}Schema() api.JSONSchema {
 							"labels": {
 								Type:        "object",
 								Description: "Labels for the {{$.CRD.Kind}}",
-								AdditionalProperties: &api.JSONSchema{
-									Type: "string",
-								},
 							},
 							"annotations": {
 								Type:        "object",
 								Description: "Annotations for the {{$.CRD.Kind}}",
-								AdditionalProperties: &api.JSONSchema{
-									Type: "string",
-								},
 							},
 							"resourceVersion": {
 								Type:        "string",
@@ -171,9 +159,9 @@ func {{$operation}}{{$.CRD.Kind}}Schema() api.JSONSchema {
 		Required: []string{"args"},
 	}
 	{{else if eq $operation "delete"}}
-	return api.JSONSchema{
+	return &jsonschema.Schema{
 		Type: "object",
-		Properties: map[string]api.JSONSchema{
+		Properties: map[string]*jsonschema.Schema{
 			"name": {
 				Type:        "string",
 				Description: "Name of the {{$.CRD.Kind}} to delete",
@@ -189,7 +177,7 @@ func {{$operation}}{{$.CRD.Kind}}Schema() api.JSONSchema {
 			"gracePeriodSeconds": {
 				Type:        "integer",
 				Description: "Grace period for deletion (optional)",
-				Minimum:     0,
+				Minimum:     float64Ptr(0),
 			},
 		},
 		Required: []string{"name"},
@@ -206,10 +194,10 @@ func {{$operation}}{{$.CRD.Kind}}Schema() api.JSONSchema {
 {{if .IncludeComments}}
 // metadataSchema returns the common metadata schema
 {{end}}
-func metadataSchema() api.JSONSchema {
-	return api.JSONSchema{
+func metadataSchema() *jsonschema.Schema {
+	return &jsonschema.Schema{
 		Type: "object",
-		Properties: map[string]api.JSONSchema{
+		Properties: map[string]*jsonschema.Schema{
 			"name": {
 				Type:        "string",
 				Description: "Name of the resource",
@@ -221,16 +209,10 @@ func metadataSchema() api.JSONSchema {
 			"labels": {
 				Type:        "object",
 				Description: "Labels for the resource",
-				AdditionalProperties: &api.JSONSchema{
-					Type: "string",
-				},
 			},
 			"annotations": {
 				Type:        "object",
 				Description: "Annotations for the resource",
-				AdditionalProperties: &api.JSONSchema{
-					Type: "string",
-				},
 			},
 		},
 		Required: []string{"name"},
@@ -241,18 +223,18 @@ func metadataSchema() api.JSONSchema {
 {{if .IncludeComments}}
 // {{.CRD.Kind | ToLower}}SpecSchema returns the schema for {{.CRD.Kind}} spec
 {{end}}
-func {{.CRD.Kind | ToLower}}SpecSchema() api.JSONSchema {
-	return api.JSONSchema{
+func {{.CRD.Kind | ToLower}}SpecSchema() *jsonschema.Schema {
+	return &jsonschema.Schema{
 		Type:        "object",
 		Description: "{{.CRD.Kind}} specification",
-		Properties: map[string]api.JSONSchema{
+		Properties: map[string]*jsonschema.Schema{
 			{{range $field := .SpecType.GetStructFields}}
 			"{{$field.JSONName}}": {
 				{{if $field.IsPrimitiveType}}
 				Type:        "{{$field.GoType}}",
 				{{else if $field.IsArrayType}}
 				Type:        "array",
-				Items:       &api.JSONSchema{Type: "object"},
+				Items:       &jsonschema.Schema{Type: "object"},
 				{{else}}
 				Type:        "object",
 				{{end}}
@@ -273,18 +255,18 @@ func {{.CRD.Kind | ToLower}}SpecSchema() api.JSONSchema {
 {{if .IncludeComments}}
 // {{.CRD.Kind | ToLower}}StatusSchema returns the schema for {{.CRD.Kind}} status
 {{end}}
-func {{.CRD.Kind | ToLower}}StatusSchema() api.JSONSchema {
-	return api.JSONSchema{
+func {{.CRD.Kind | ToLower}}StatusSchema() *jsonschema.Schema {
+	return &jsonschema.Schema{
 		Type:        "object",
 		Description: "{{.CRD.Kind}} status",
-		Properties: map[string]api.JSONSchema{
+		Properties: map[string]*jsonschema.Schema{
 			{{range $field := .StatusType.GetStructFields}}
 			"{{$field.JSONName}}": {
 				{{if $field.IsPrimitiveType}}
 				Type:        "{{$field.GoType}}",
 				{{else if $field.IsArrayType}}
 				Type:        "array",
-				Items:       &api.JSONSchema{Type: "object"},
+				Items:       &jsonschema.Schema{Type: "object"},
 				{{else}}
 				Type:        "object",
 				{{end}}
@@ -297,3 +279,8 @@ func {{.CRD.Kind | ToLower}}StatusSchema() api.JSONSchema {
 	}
 }
 {{end}}
+
+// float64Ptr returns a pointer to a float64 value
+func float64Ptr(v float64) *float64 {
+	return &v
+}

@@ -388,7 +388,7 @@ func convertSchemaToGoCode(schemaInterface interface{}, indent int) string {
 	indentStr := strings.Repeat("\t", indent)
 	var sb strings.Builder
 
-	sb.WriteString("{\n")
+	sb.WriteString("&jsonschema.Schema{\n")
 	appendBasicSchemaFields(&sb, schema, indentStr)
 	appendSchemaValidation(&sb, schema, indentStr)
 	appendSchemaStructure(&sb, schema, indentStr, indent)
@@ -454,7 +454,7 @@ func appendSchemaValidation(sb *strings.Builder, schema *apiextensionsv1.JSONSch
 // appendSchemaStructure appends properties, required fields, items, and additional properties
 func appendSchemaStructure(sb *strings.Builder, schema *apiextensionsv1.JSONSchemaProps, indentStr string, indent int) {
 	if len(schema.Properties) > 0 {
-		fmt.Fprintf(sb, "%s\tProperties: map[string]api.JSONSchema{\n", indentStr)
+		fmt.Fprintf(sb, "%s\tProperties: map[string]*jsonschema.Schema{\n", indentStr)
 		for propName := range schema.Properties {
 			propSchema := schema.Properties[propName]
 			fmt.Fprintf(sb, "%s\t\t%q: ", indentStr, propName)
@@ -476,13 +476,13 @@ func appendSchemaStructure(sb *strings.Builder, schema *apiextensionsv1.JSONSche
 	}
 
 	if schema.Items != nil && schema.Items.Schema != nil {
-		fmt.Fprintf(sb, "%s\tItems: &api.JSONSchema", indentStr)
+		fmt.Fprintf(sb, "%s\tItems: &jsonschema.Schema", indentStr)
 		sb.WriteString(convertSchemaToGoCode(schema.Items.Schema, indent+1))
 		sb.WriteString(",\n")
 	}
 
 	if schema.AdditionalProperties != nil && schema.AdditionalProperties.Schema != nil {
-		fmt.Fprintf(sb, "%s\tAdditionalProperties: &api.JSONSchema", indentStr)
+		fmt.Fprintf(sb, "%s\tAdditionalProperties: &jsonschema.Schema", indentStr)
 		sb.WriteString(convertSchemaToGoCode(schema.AdditionalProperties.Schema, indent+1))
 		sb.WriteString(",\n")
 	}
