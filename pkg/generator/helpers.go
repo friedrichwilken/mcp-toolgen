@@ -420,8 +420,8 @@ func convertSchemaToGoCode(schemaInterface interface{}, indent int) string {
 			if i > 0 {
 				sb.WriteString(", ")
 			}
-			// Handle different types of enum values
-			sb.WriteString(fmt.Sprintf("%q", val.Raw))
+			// val.Raw is already a quoted JSON value, so we don't need to quote it again
+			sb.WriteString(string(val.Raw))
 		}
 		sb.WriteString("},\n")
 	}
