@@ -36,6 +36,7 @@ func {{generateMethodName $operation $.CRD.Plural | ToLower}}Tool() api.ServerTo
 			Description: "{{$operation | ToTitle}} a {{$.CRD.Kind}} custom resource",
 			InputSchema: {{$operation}}{{$.CRD.Kind}}Schema(),
 		},
+		Handler: Handle{{$operation | ToTitle}}{{$.CRD.Kind}},
 	}
 }
 
