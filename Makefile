@@ -46,12 +46,12 @@ fmt: ## Format Go code (standard)
 fmt-imports: ## Fix and organize imports
 	@echo "Organizing imports..."
 	@which goimports > /dev/null || (echo "Installing goimports..." && go install golang.org/x/tools/cmd/goimports@latest)
-	goimports -w -local github.com/friedrichwilken/mcp-toolgen .
+	find . -name '*.go' -not -path './test/fixtures/golden/*' -exec goimports -w -local github.com/friedrichwilken/mcp-toolgen {} +
 
 fmt-modern: ## Apply modern Go formatting (interface{} -> any, strict formatting)
 	@echo "Applying modern Go formatting..."
 	@which gofumpt > /dev/null || (echo "Installing gofumpt..." && go install mvdan.cc/gofumpt@latest)
-	gofumpt -w -extra .
+	find . -name '*.go' -not -path './test/fixtures/golden/*' -exec gofumpt -w -extra {} +
 
 vet: ## Run go vet
 	@echo "Running go vet..."
