@@ -18,6 +18,7 @@ func (g *Generator) loadEmbeddedTemplates() error {
 		"Contains":              contains,
 		"Join":                  join,
 		"Quote":                 quote,
+		"EscapeString":          escapeString,
 		"ConvertSchemaToGoCode": convertSchemaToGoCode,
 		// Add helper functions for template generation
 		"generateMethodName": generateMethodName,
@@ -52,6 +53,7 @@ func (g *Generator) createInlineTemplates() error {
 		"Contains":              contains,
 		"Join":                  join,
 		"Quote":                 quote,
+		"EscapeString":          escapeString,
 		"ConvertSchemaToGoCode": convertSchemaToGoCode,
 		"generateMethodName":    generateMethodName,
 		"generateToolName":      generateToolName,

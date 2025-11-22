@@ -335,6 +335,25 @@ func wrapComment(text string, maxWidth int) string {
 	return strings.Join(lines, "\n")
 }
 
+// escapeString escapes a string for use in Go string literals
+// It handles newlines, quotes, and other special characters
+func escapeString(s string) string {
+	// Replace backslashes first to avoid double-escaping
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	// Replace quotes
+	s = strings.ReplaceAll(s, `"`, `\"`)
+	// Replace newlines with space to keep descriptions on one line
+	s = strings.ReplaceAll(s, "\n", " ")
+	s = strings.ReplaceAll(s, "\r", "")
+	// Replace tabs with spaces
+	s = strings.ReplaceAll(s, "\t", " ")
+	// Collapse multiple spaces
+	for strings.Contains(s, "  ") {
+		s = strings.ReplaceAll(s, "  ", " ")
+	}
+	return strings.TrimSpace(s)
+}
+
 // generateFieldName generates a Go field name from a JSON field name
 func generateFieldName(jsonName string) string {
 	return toPascalCase(jsonName)

@@ -239,7 +239,7 @@ func {{.CRD.Kind | ToLower}}SpecSchema() *jsonschema.Schema {
 				Type:        "object",
 				{{end}}
 				{{if $field.Description}}
-				Description: "{{$field.Description}}",
+				Description: "{{EscapeString $field.Description}}",
 				{{end}}
 			},
 			{{end}}
@@ -271,7 +271,7 @@ func {{.CRD.Kind | ToLower}}StatusSchema() *jsonschema.Schema {
 				Type:        "object",
 				{{end}}
 				{{if $field.Description}}
-				Description: "{{$field.Description}}",
+				Description: "{{EscapeString $field.Description}}",
 				{{end}}
 			},
 			{{end}}
