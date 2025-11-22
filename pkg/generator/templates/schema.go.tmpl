@@ -2,6 +2,7 @@ package {{.Package}}
 
 import (
 	"github.com/google/jsonschema-go/jsonschema"
+	"k8s.io/utils/ptr"
 )
 
 {{range $operation := .Operations}}
@@ -177,7 +178,7 @@ func {{$operation}}{{$.CRD.Kind}}Schema() *jsonschema.Schema {
 			"gracePeriodSeconds": {
 				Type:        "integer",
 				Description: "Grace period for deletion (optional)",
-				Minimum:     float64Ptr(0),
+				Minimum:     ptr.To(float64(0)),
 			},
 		},
 		Required: []string{"name"},
@@ -279,8 +280,3 @@ func {{.CRD.Kind | ToLower}}StatusSchema() *jsonschema.Schema {
 	}
 }
 {{end}}
-
-// float64Ptr returns a pointer to a float64 value
-func float64Ptr(v float64) *float64 {
-	return &v
-}

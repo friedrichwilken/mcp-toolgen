@@ -1,12 +1,13 @@
 package {{.Package}}
 
 import (
-	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	internalk8s "github.com/containers/kubernetes-mcp-server/pkg/kubernetes"
+	"github.com/containers/kubernetes-mcp-server/pkg/output"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 {{range $operation := .Operations}}
@@ -30,291 +31,175 @@ func Handle{{$operation | ToTitle}}{{$.CRD.Kind}}(params api.ToolHandlerParams) 
 {{end}}
 
 {{if .IncludeComments}}
-// handle{{.CRD.Kind}}Create creates a new {{.CRD.Kind}} resource
-{{end}}
-func handle{{.CRD.Kind}}Create(params api.ToolHandlerParams) (*api.ToolCallResult, error) {
-	{{if .IncludeComments}}
-	// Parse parameters
-	{{end}}
-	args := params.GetArguments()
-
-	{{if .IncludeComments}}
-	// Get Kubernetes client
-	{{end}}
-	k8sClient, err := params.GetClient(getClusterName(args))
-	if err != nil {
-		return api.NewToolCallResult("", fmt.Errorf("failed to get Kubernetes client: %w", err)), nil
-	}
-
-	{{if .IncludeComments}}
-	// Parse {{.CRD.Kind}} from args
-	{{end}}
-	{{.CRD.Kind | ToLower}} := &{{.CRD.Kind}}{}
-	if argsData, ok := args["args"].(map[string]interface{}); ok {
-		if err := parseResource(argsData, {{.CRD.Kind | ToLower}}); err != nil {
-			return api.NewToolCallResult("", fmt.Errorf("failed to parse {{.CRD.Kind}}: %w", err)), nil
-		}
-	} else {
-		return api.NewToolCallResult("", fmt.Errorf("args field is required")), nil
-	}
-
-	{{if .IncludeComments}}
-	// Set namespace if not specified
-	{{end}}
-	namespace := getNamespace(args)
-	if {{.CRD.Kind | ToLower}}.Namespace == "" && namespace != "" {
-		{{.CRD.Kind | ToLower}}.Namespace = namespace
-	}
-
-	{{if .IncludeComments}}
-	// Create the resource
-	{{end}}
-	{{.CRD.Kind | ToLower}}Client := New{{.CRD.Kind}}Client(k8sClient, {{.CRD.Kind | ToLower}}.Namespace)
-	if err := {{.CRD.Kind | ToLower}}Client.Create(params.Context, {{.CRD.Kind | ToLower}}); err != nil {
-		return api.NewToolCallResult("", fmt.Errorf("failed to create {{.CRD.Kind}}: %w", err)), nil
-	}
-
-	{{if .IncludeComments}}
-	// Return success result
-	{{end}}
-	result, err := json.Marshal({{.CRD.Kind | ToLower}})
-	if err != nil {
-		return api.NewToolCallResult("", fmt.Errorf("failed to marshal result: %w", err)), nil
-	}
-
-	return api.NewToolCallResult(string(result), nil), nil
-}
-
-{{if .IncludeComments}}
 // handle{{.CRD.Kind}}Get retrieves a {{.CRD.Kind}} resource
 {{end}}
 func handle{{.CRD.Kind}}Get(params api.ToolHandlerParams) (*api.ToolCallResult, error) {
-	{{if .IncludeComments}}
-	// Parse parameters
-	{{end}}
 	args := params.GetArguments()
 
-	name, ok := args["name"].(string)
-	if !ok || name == "" {
-		return api.NewToolCallResult("", fmt.Errorf("name is required")), nil
+	namespace := args["namespace"]
+	if namespace == nil {
+		namespace = ""
+	}
+	name := args["name"]
+	if name == nil {
+		return api.NewToolCallResult("", errors.New("failed to get {{.CRD.Kind | ToLower}}, missing argument name")), nil
 	}
 
-	{{if .IncludeComments}}
-	// Get Kubernetes client
-	{{end}}
-	k8sClient, err := params.GetClient(getClusterName(args))
+	gvk := &schema.GroupVersionKind{
+		Group:   "{{.CRD.Group}}",
+		Version: "{{.CRD.Version}}",
+		Kind:    "{{.CRD.Kind}}",
+	}
+
+	ns, ok := namespace.(string)
+	if !ok {
+		return api.NewToolCallResult("", fmt.Errorf("namespace is not a string")), nil
+	}
+
+	n, ok := name.(string)
+	if !ok {
+		return api.NewToolCallResult("", fmt.Errorf("name is not a string")), nil
+	}
+
+	ret, err := params.ResourcesGet(params, gvk, ns, n)
 	if err != nil {
-		return api.NewToolCallResult("", fmt.Errorf("failed to get Kubernetes client: %w", err)), nil
+		return api.NewToolCallResult("", fmt.Errorf("failed to get {{.CRD.Kind | ToLower}}: %v", err)), nil
 	}
-
-	namespace := getNamespace(args)
-	if namespace == "" {
-		namespace = "default"
-	}
-
-	{{if .IncludeComments}}
-	// Get the resource
-	{{end}}
-	{{.CRD.Kind | ToLower}}Client := New{{.CRD.Kind}}Client(k8sClient, namespace)
-	{{.CRD.Kind | ToLower}}, err := {{.CRD.Kind | ToLower}}Client.Get(params.Context, name)
-	if err != nil {
-		return api.NewToolCallResult("", fmt.Errorf("failed to get {{.CRD.Kind}} %s: %w", name, err)), nil
-	}
-
-	{{if .IncludeComments}}
-	// Return success result
-	{{end}}
-	result, err := json.Marshal({{.CRD.Kind | ToLower}})
-	if err != nil {
-		return api.NewToolCallResult("", fmt.Errorf("failed to marshal result: %w", err)), nil
-	}
-
-	return api.NewToolCallResult(string(result), nil), nil
+	return api.NewToolCallResult(output.MarshalYaml(ret)), nil
 }
 
 {{if .IncludeComments}}
 // handle{{.CRD.Kind}}List lists {{.CRD.Kind}} resources
 {{end}}
 func handle{{.CRD.Kind}}List(params api.ToolHandlerParams) (*api.ToolCallResult, error) {
-	{{if .IncludeComments}}
-	// Parse parameters
-	{{end}}
 	args := params.GetArguments()
 
-	{{if .IncludeComments}}
-	// Get Kubernetes client
-	{{end}}
-	k8sClient, err := params.GetClient(getClusterName(args))
+	namespace := args["namespace"]
+	if namespace == nil {
+		namespace = ""
+	}
+	labelSelector := args["labelSelector"]
+	resourceListOptions := internalk8s.ResourceListOptions{
+		AsTable: params.ListOutput.AsTable(),
+	}
+
+	if labelSelector != nil {
+		l, ok := labelSelector.(string)
+		if !ok {
+			return api.NewToolCallResult("", fmt.Errorf("labelSelector is not a string")), nil
+		}
+		resourceListOptions.LabelSelector = l
+	}
+
+	gvk := &schema.GroupVersionKind{
+		Group:   "{{.CRD.Group}}",
+		Version: "{{.CRD.Version}}",
+		Kind:    "{{.CRD.Kind}}",
+	}
+
+	ns, ok := namespace.(string)
+	if !ok {
+		return api.NewToolCallResult("", fmt.Errorf("namespace is not a string")), nil
+	}
+
+	ret, err := params.ResourcesList(params, gvk, ns, resourceListOptions)
 	if err != nil {
-		return api.NewToolCallResult("", fmt.Errorf("failed to get Kubernetes client: %w", err)), nil
+		return api.NewToolCallResult("", fmt.Errorf("failed to list {{.CRD.Plural | ToLower}}: %v", err)), nil
+	}
+	return api.NewToolCallResult(params.ListOutput.PrintObj(ret)), nil
+}
+
+{{if .IncludeComments}}
+// handle{{.CRD.Kind}}Create creates a new {{.CRD.Kind}} resource
+{{end}}
+func handle{{.CRD.Kind}}Create(params api.ToolHandlerParams) (*api.ToolCallResult, error) {
+	args := params.GetArguments()
+
+	resource := args["resource"]
+	if resource == nil {
+		return api.NewToolCallResult("", errors.New("failed to create {{.CRD.Kind | ToLower}}, missing argument resource")), nil
 	}
 
-	namespace := getNamespace(args)
-	if namespace == "" {
-		namespace = "default"
+	resourceStr, ok := resource.(string)
+	if !ok {
+		return api.NewToolCallResult("", fmt.Errorf("resource is not a string")), nil
 	}
 
-	{{if .IncludeComments}}
-	// List resources
-	{{end}}
-	{{.CRD.Kind | ToLower}}Client := New{{.CRD.Kind}}Client(k8sClient, namespace)
-	list, err := {{.CRD.Kind | ToLower}}Client.List(params.Context)
+	ret, err := params.ResourcesCreateOrUpdate(params, resourceStr)
 	if err != nil {
-		return api.NewToolCallResult("", fmt.Errorf("failed to list {{.CRD.Kind}} resources: %w", err)), nil
+		return api.NewToolCallResult("", fmt.Errorf("failed to create {{.CRD.Kind | ToLower}}: %v", err)), nil
 	}
 
-	{{if .IncludeComments}}
-	// Return success result
-	{{end}}
-	result, err := json.Marshal(list)
-	if err != nil {
-		return api.NewToolCallResult("", fmt.Errorf("failed to marshal result: %w", err)), nil
+	if len(ret) == 0 {
+		return api.NewToolCallResult("", errors.New("no resources were created")), nil
 	}
 
-	return api.NewToolCallResult(string(result), nil), nil
+	return api.NewToolCallResult(output.MarshalYaml(ret[0])), nil
 }
 
 {{if .IncludeComments}}
 // handle{{.CRD.Kind}}Update updates a {{.CRD.Kind}} resource
 {{end}}
 func handle{{.CRD.Kind}}Update(params api.ToolHandlerParams) (*api.ToolCallResult, error) {
-	{{if .IncludeComments}}
-	// Parse parameters
-	{{end}}
 	args := params.GetArguments()
 
-	{{if .IncludeComments}}
-	// Get Kubernetes client
-	{{end}}
-	k8sClient, err := params.GetClient(getClusterName(args))
+	resource := args["resource"]
+	if resource == nil {
+		return api.NewToolCallResult("", errors.New("failed to update {{.CRD.Kind | ToLower}}, missing argument resource")), nil
+	}
+
+	resourceStr, ok := resource.(string)
+	if !ok {
+		return api.NewToolCallResult("", fmt.Errorf("resource is not a string")), nil
+	}
+
+	ret, err := params.ResourcesCreateOrUpdate(params, resourceStr)
 	if err != nil {
-		return api.NewToolCallResult("", fmt.Errorf("failed to get Kubernetes client: %w", err)), nil
+		return api.NewToolCallResult("", fmt.Errorf("failed to update {{.CRD.Kind | ToLower}}: %v", err)), nil
 	}
 
-	{{if .IncludeComments}}
-	// Parse {{.CRD.Kind}} from args
-	{{end}}
-	{{.CRD.Kind | ToLower}} := &{{.CRD.Kind}}{}
-	if argsData, ok := args["args"].(map[string]interface{}); ok {
-		if err := parseResource(argsData, {{.CRD.Kind | ToLower}}); err != nil {
-			return api.NewToolCallResult("", fmt.Errorf("failed to parse {{.CRD.Kind}}: %w", err)), nil
-		}
-	} else {
-		return api.NewToolCallResult("", fmt.Errorf("args field is required")), nil
+	if len(ret) == 0 {
+		return api.NewToolCallResult("", errors.New("no resources were updated")), nil
 	}
 
-	{{if .IncludeComments}}
-	// Set namespace if not specified
-	{{end}}
-	namespace := getNamespace(args)
-	if {{.CRD.Kind | ToLower}}.Namespace == "" && namespace != "" {
-		{{.CRD.Kind | ToLower}}.Namespace = namespace
-	}
-
-	{{if .IncludeComments}}
-	// Update the resource
-	{{end}}
-	{{.CRD.Kind | ToLower}}Client := New{{.CRD.Kind}}Client(k8sClient, {{.CRD.Kind | ToLower}}.Namespace)
-	if err := {{.CRD.Kind | ToLower}}Client.Update(params.Context, {{.CRD.Kind | ToLower}}); err != nil {
-		return api.NewToolCallResult("", fmt.Errorf("failed to update {{.CRD.Kind}}: %w", err)), nil
-	}
-
-	{{if .IncludeComments}}
-	// Return success result
-	{{end}}
-	result, err := json.Marshal({{.CRD.Kind | ToLower}})
-	if err != nil {
-		return api.NewToolCallResult("", fmt.Errorf("failed to marshal result: %w", err)), nil
-	}
-
-	return api.NewToolCallResult(string(result), nil), nil
+	return api.NewToolCallResult(output.MarshalYaml(ret[0])), nil
 }
 
 {{if .IncludeComments}}
 // handle{{.CRD.Kind}}Delete deletes a {{.CRD.Kind}} resource
 {{end}}
 func handle{{.CRD.Kind}}Delete(params api.ToolHandlerParams) (*api.ToolCallResult, error) {
-	{{if .IncludeComments}}
-	// Parse parameters
-	{{end}}
 	args := params.GetArguments()
 
-	name, ok := args["name"].(string)
-	if !ok || name == "" {
-		return api.NewToolCallResult("", fmt.Errorf("name is required")), nil
+	namespace := args["namespace"]
+	if namespace == nil {
+		namespace = ""
+	}
+	name := args["name"]
+	if name == nil {
+		return api.NewToolCallResult("", errors.New("failed to delete {{.CRD.Kind | ToLower}}, missing argument name")), nil
 	}
 
-	{{if .IncludeComments}}
-	// Get Kubernetes client
-	{{end}}
-	k8sClient, err := params.GetClient(getClusterName(args))
+	gvk := &schema.GroupVersionKind{
+		Group:   "{{.CRD.Group}}",
+		Version: "{{.CRD.Version}}",
+		Kind:    "{{.CRD.Kind}}",
+	}
+
+	ns, ok := namespace.(string)
+	if !ok {
+		return api.NewToolCallResult("", fmt.Errorf("namespace is not a string")), nil
+	}
+
+	n, ok := name.(string)
+	if !ok {
+		return api.NewToolCallResult("", fmt.Errorf("name is not a string")), nil
+	}
+
+	err := params.ResourcesDelete(params, gvk, ns, n)
 	if err != nil {
-		return api.NewToolCallResult("", fmt.Errorf("failed to get Kubernetes client: %w", err)), nil
+		return api.NewToolCallResult("", fmt.Errorf("failed to delete {{.CRD.Kind | ToLower}} %s: %v", n, err)), nil
 	}
 
-	namespace := getNamespace(args)
-	if namespace == "" {
-		namespace = "default"
-	}
-
-	{{if .IncludeComments}}
-	// Delete the resource
-	{{end}}
-	{{.CRD.Kind | ToLower}}Client := New{{.CRD.Kind}}Client(k8sClient, namespace)
-	if err := {{.CRD.Kind | ToLower}}Client.Delete(params.Context, name); err != nil {
-		return api.NewToolCallResult("", fmt.Errorf("failed to delete {{.CRD.Kind}} %s: %w", name, err)), nil
-	}
-
-	{{if .IncludeComments}}
-	// Return success result
-	{{end}}
-	result := map[string]string{
-		"status": "deleted",
-		"name":   name,
-	}
-	resultJSON, err := json.Marshal(result)
-	if err != nil {
-		return api.NewToolCallResult("", fmt.Errorf("failed to marshal result: %w", err)), nil
-	}
-
-	return api.NewToolCallResult(string(resultJSON), nil), nil
-}
-
-{{if .IncludeComments}}
-// Helper functions
-{{end}}
-
-{{if .IncludeComments}}
-// parseResource parses resource data from args
-{{end}}
-func parseResource(args map[string]interface{}, target interface{}) error {
-	if args == nil {
-		return fmt.Errorf("resource data is required")
-	}
-
-	data, err := json.Marshal(args)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(data, target)
-}
-
-{{if .IncludeComments}}
-// getClusterName extracts cluster name from arguments
-{{end}}
-func getClusterName(args map[string]interface{}) string {
-	if cluster, ok := args["cluster"].(string); ok {
-		return cluster
-	}
-	return ""
-}
-
-{{if .IncludeComments}}
-// getNamespace extracts namespace from arguments
-{{end}}
-func getNamespace(args map[string]interface{}) string {
-	if namespace, ok := args["namespace"].(string); ok {
-		return namespace
-	}
-	return ""
+	return api.NewToolCallResult(fmt.Sprintf("{{.CRD.Kind}} %s deleted successfully", n), nil), nil
 }
