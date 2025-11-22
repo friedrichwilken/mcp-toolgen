@@ -7,6 +7,7 @@ import (
 
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 
 // Template helper functions
@@ -373,4 +374,114 @@ func generateToolName(operation, resourceName string) string {
 	default:
 		return fmt.Sprintf("%s_%s", toSnakeCase(resourceName), toSnakeCase(operation))
 	}
+}
+
+// convertSchemaToGoCode converts an OpenAPI schema to Go code that generates a JSON schema
+// This is used in templates to generate schema definitions
+// Accepts both pointer and value types - if value is passed, takes its address
+func convertSchemaToGoCode(schemaInterface interface{}, indent int) string {
+	// Handle both pointer and value types
+	var schema *apiextensionsv1.JSONSchemaProps
+	switch v := schemaInterface.(type) {
+	case *apiextensionsv1.JSONSchemaProps:
+		schema = v
+	case apiextensionsv1.JSONSchemaProps:
+		schema = &v
+	default:
+		return ""
+	}
+
+	if schema == nil {
+		return ""
+	}
+
+	indentStr := strings.Repeat("\t", indent)
+	var sb strings.Builder
+
+	// Start with opening brace
+	sb.WriteString("{\n")
+
+	// Type
+	if schema.Type != "" {
+		sb.WriteString(fmt.Sprintf("%s\tType:        %q,\n", indentStr, schema.Type))
+	}
+
+	// Description
+	if schema.Description != "" {
+		// Escape quotes in description
+		desc := strings.ReplaceAll(schema.Description, `"`, `\"`)
+		sb.WriteString(fmt.Sprintf("%s\tDescription: %q,\n", indentStr, desc))
+	}
+
+	// Enum
+	if len(schema.Enum) > 0 {
+		sb.WriteString(fmt.Sprintf("%s\tEnum:        []any{", indentStr))
+		for i, val := range schema.Enum {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			// Handle different types of enum values
+			sb.WriteString(fmt.Sprintf("%q", val.Raw))
+		}
+		sb.WriteString("},\n")
+	}
+
+	// Validation constraints
+	if schema.Minimum != nil {
+		sb.WriteString(fmt.Sprintf("%s\tMinimum:     %v,\n", indentStr, *schema.Minimum))
+	}
+	if schema.Maximum != nil {
+		sb.WriteString(fmt.Sprintf("%s\tMaximum:     %v,\n", indentStr, *schema.Maximum))
+	}
+	if schema.MinLength != nil {
+		sb.WriteString(fmt.Sprintf("%s\tMinLength:   %v,\n", indentStr, *schema.MinLength))
+	}
+	if schema.MaxLength != nil {
+		sb.WriteString(fmt.Sprintf("%s\tMaxLength:   %v,\n", indentStr, *schema.MaxLength))
+	}
+	if schema.Pattern != "" {
+		sb.WriteString(fmt.Sprintf("%s\tPattern:     %q,\n", indentStr, schema.Pattern))
+	}
+
+	// Properties (for object types)
+	if len(schema.Properties) > 0 {
+		sb.WriteString(fmt.Sprintf("%s\tProperties: map[string]api.JSONSchema{\n", indentStr))
+		for propName, propSchema := range schema.Properties {
+			sb.WriteString(fmt.Sprintf("%s\t\t%q: ", indentStr, propName))
+			sb.WriteString(convertSchemaToGoCode(&propSchema, indent+2))
+			sb.WriteString(",\n")
+		}
+		sb.WriteString(fmt.Sprintf("%s\t},\n", indentStr))
+	}
+
+	// Required fields
+	if len(schema.Required) > 0 {
+		sb.WriteString(fmt.Sprintf("%s\tRequired:    []string{", indentStr))
+		for i, req := range schema.Required {
+			if i > 0 {
+				sb.WriteString(", ")
+			}
+			sb.WriteString(fmt.Sprintf("%q", req))
+		}
+		sb.WriteString("},\n")
+	}
+
+	// Array items
+	if schema.Items != nil && schema.Items.Schema != nil {
+		sb.WriteString(fmt.Sprintf("%s\tItems: &api.JSONSchema", indentStr))
+		sb.WriteString(convertSchemaToGoCode(schema.Items.Schema, indent+1))
+		sb.WriteString(",\n")
+	}
+
+	// Additional properties (for maps)
+	if schema.AdditionalProperties != nil && schema.AdditionalProperties.Schema != nil {
+		sb.WriteString(fmt.Sprintf("%s\tAdditionalProperties: &api.JSONSchema", indentStr))
+		sb.WriteString(convertSchemaToGoCode(schema.AdditionalProperties.Schema, indent+1))
+		sb.WriteString(",\n")
+	}
+
+	// Close the schema
+	sb.WriteString(fmt.Sprintf("%s}", indentStr))
+
+	return sb.String()
 }
