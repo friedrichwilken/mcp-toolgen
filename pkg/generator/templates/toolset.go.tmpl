@@ -31,9 +31,11 @@ func (t *{{.CRD.Kind}}Toolset) GetTools(o internalk8s.Openshift) []api.ServerToo
 // {{generateMethodName $operation $.CRD.Plural | ToLower}}Tool creates the MCP tool for {{$operation}} operations
 func {{generateMethodName $operation $.CRD.Plural | ToLower}}Tool() api.ServerTool {
 	return api.ServerTool{
-		Name:        "{{generateToolName $operation $.CRD.Plural}}",
-		Description: "{{$operation | ToTitle}} a {{$.CRD.Kind}} custom resource",
-		InputSchema: {{$operation}}{{$.CRD.Kind}}Schema(),
+		Tool: api.Tool{
+			Name:        "{{generateToolName $operation $.CRD.Plural}}",
+			Description: "{{$operation | ToTitle}} a {{$.CRD.Kind}} custom resource",
+			InputSchema: {{$operation}}{{$.CRD.Kind}}Schema(),
+		},
 	}
 }
 
