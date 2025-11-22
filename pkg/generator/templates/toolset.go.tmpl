@@ -3,10 +3,14 @@ package {{.Package}}
 import (
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
 	internalk8s "github.com/containers/kubernetes-mcp-server/pkg/kubernetes"
+	"github.com/containers/kubernetes-mcp-server/pkg/toolsets"
 )
 
 // {{.CRD.Kind}}Toolset provides MCP tools for managing {{.CRD.Kind}} custom resources
 type {{.CRD.Kind}}Toolset struct{}
+
+// Ensure {{.CRD.Kind}}Toolset implements api.Toolset interface
+var _ api.Toolset = (*{{.CRD.Kind}}Toolset)(nil)
 
 // GetName returns the name of this toolset
 func (t *{{.CRD.Kind}}Toolset) GetName() string {
@@ -42,8 +46,7 @@ func {{generateMethodName $operation $.CRD.Plural | ToLower}}Tool() api.ServerTo
 
 {{end}}
 
-// init registers this toolset
+// init registers this toolset with the global registry
 func init() {
-	// This will be called when the package is imported
-	// The actual registration happens in the main server
+	toolsets.Register(&{{.CRD.Kind}}Toolset{})
 }
