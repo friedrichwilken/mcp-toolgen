@@ -454,16 +454,16 @@ func appendBasicSchemaFields(sb *strings.Builder, schema *apiextensionsv1.JSONSc
 // appendSchemaValidation appends validation constraints to schema code
 func appendSchemaValidation(sb *strings.Builder, schema *apiextensionsv1.JSONSchemaProps, indentStr string) {
 	if schema.Minimum != nil {
-		fmt.Fprintf(sb, "%s\tMinimum:     %v,\n", indentStr, *schema.Minimum)
+		fmt.Fprintf(sb, "%s\tMinimum:     ptr.To(float64(%v)),\n", indentStr, *schema.Minimum)
 	}
 	if schema.Maximum != nil {
-		fmt.Fprintf(sb, "%s\tMaximum:     %v,\n", indentStr, *schema.Maximum)
+		fmt.Fprintf(sb, "%s\tMaximum:     ptr.To(float64(%v)),\n", indentStr, *schema.Maximum)
 	}
 	if schema.MinLength != nil {
-		fmt.Fprintf(sb, "%s\tMinLength:   %v,\n", indentStr, *schema.MinLength)
+		fmt.Fprintf(sb, "%s\tMinLength:   ptr.To(%d),\n", indentStr, *schema.MinLength)
 	}
 	if schema.MaxLength != nil {
-		fmt.Fprintf(sb, "%s\tMaxLength:   %v,\n", indentStr, *schema.MaxLength)
+		fmt.Fprintf(sb, "%s\tMaxLength:   ptr.To(%d),\n", indentStr, *schema.MaxLength)
 	}
 	if schema.Pattern != "" {
 		fmt.Fprintf(sb, "%s\tPattern:     %q,\n", indentStr, schema.Pattern)
@@ -495,13 +495,13 @@ func appendSchemaStructure(sb *strings.Builder, schema *apiextensionsv1.JSONSche
 	}
 
 	if schema.Items != nil && schema.Items.Schema != nil {
-		fmt.Fprintf(sb, "%s\tItems: &jsonschema.Schema", indentStr)
+		fmt.Fprintf(sb, "%s\tItems: ", indentStr)
 		sb.WriteString(convertSchemaToGoCode(schema.Items.Schema, indent+1))
 		sb.WriteString(",\n")
 	}
 
 	if schema.AdditionalProperties != nil && schema.AdditionalProperties.Schema != nil {
-		fmt.Fprintf(sb, "%s\tAdditionalProperties: &jsonschema.Schema", indentStr)
+		fmt.Fprintf(sb, "%s\tAdditionalProperties: ", indentStr)
 		sb.WriteString(convertSchemaToGoCode(schema.AdditionalProperties.Schema, indent+1))
 		sb.WriteString(",\n")
 	}
