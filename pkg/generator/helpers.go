@@ -380,17 +380,7 @@ func generateToolName(operation, resourceName string) string {
 // This is used in templates to generate schema definitions
 // Accepts both pointer and value types - if value is passed, takes its address
 func convertSchemaToGoCode(schemaInterface interface{}, indent int) string {
-	// Handle both pointer and value types
-	var schema *apiextensionsv1.JSONSchemaProps
-	switch v := schemaInterface.(type) {
-	case *apiextensionsv1.JSONSchemaProps:
-		schema = v
-	case apiextensionsv1.JSONSchemaProps:
-		schema = &v
-	default:
-		return ""
-	}
-
+	schema := normalizeSchemaInterface(schemaInterface)
 	if schema == nil {
 		return ""
 	}
@@ -398,35 +388,52 @@ func convertSchemaToGoCode(schemaInterface interface{}, indent int) string {
 	indentStr := strings.Repeat("\t", indent)
 	var sb strings.Builder
 
-	// Start with opening brace
 	sb.WriteString("{\n")
+	appendBasicSchemaFields(&sb, schema, indentStr)
+	appendSchemaValidation(&sb, schema, indentStr)
+	appendSchemaStructure(&sb, schema, indentStr, indent)
+	sb.WriteString(fmt.Sprintf("%s}", indentStr))
 
-	// Type
+	return sb.String()
+}
+
+// normalizeSchemaInterface handles both pointer and value types for schema
+func normalizeSchemaInterface(schemaInterface interface{}) *apiextensionsv1.JSONSchemaProps {
+	switch v := schemaInterface.(type) {
+	case *apiextensionsv1.JSONSchemaProps:
+		return v
+	case apiextensionsv1.JSONSchemaProps:
+		return &v
+	default:
+		return nil
+	}
+}
+
+// appendBasicSchemaFields appends type, description, and enum to schema code
+func appendBasicSchemaFields(sb *strings.Builder, schema *apiextensionsv1.JSONSchemaProps, indentStr string) {
 	if schema.Type != "" {
 		sb.WriteString(fmt.Sprintf("%s\tType:        %q,\n", indentStr, schema.Type))
 	}
 
-	// Description
 	if schema.Description != "" {
-		// Escape quotes in description
 		desc := strings.ReplaceAll(schema.Description, `"`, `\"`)
 		sb.WriteString(fmt.Sprintf("%s\tDescription: %q,\n", indentStr, desc))
 	}
 
-	// Enum
 	if len(schema.Enum) > 0 {
 		sb.WriteString(fmt.Sprintf("%s\tEnum:        []any{", indentStr))
 		for i, val := range schema.Enum {
 			if i > 0 {
 				sb.WriteString(", ")
 			}
-			// val.Raw is already a quoted JSON value, so we don't need to quote it again
 			sb.WriteString(string(val.Raw))
 		}
 		sb.WriteString("},\n")
 	}
+}
 
-	// Validation constraints
+// appendSchemaValidation appends validation constraints to schema code
+func appendSchemaValidation(sb *strings.Builder, schema *apiextensionsv1.JSONSchemaProps, indentStr string) {
 	if schema.Minimum != nil {
 		sb.WriteString(fmt.Sprintf("%s\tMinimum:     %v,\n", indentStr, *schema.Minimum))
 	}
@@ -442,11 +449,14 @@ func convertSchemaToGoCode(schemaInterface interface{}, indent int) string {
 	if schema.Pattern != "" {
 		sb.WriteString(fmt.Sprintf("%s\tPattern:     %q,\n", indentStr, schema.Pattern))
 	}
+}
 
-	// Properties (for object types)
+// appendSchemaStructure appends properties, required fields, items, and additional properties
+func appendSchemaStructure(sb *strings.Builder, schema *apiextensionsv1.JSONSchemaProps, indentStr string, indent int) {
 	if len(schema.Properties) > 0 {
 		sb.WriteString(fmt.Sprintf("%s\tProperties: map[string]api.JSONSchema{\n", indentStr))
-		for propName, propSchema := range schema.Properties {
+		for propName := range schema.Properties {
+			propSchema := schema.Properties[propName]
 			sb.WriteString(fmt.Sprintf("%s\t\t%q: ", indentStr, propName))
 			sb.WriteString(convertSchemaToGoCode(&propSchema, indent+2))
 			sb.WriteString(",\n")
@@ -454,7 +464,6 @@ func convertSchemaToGoCode(schemaInterface interface{}, indent int) string {
 		sb.WriteString(fmt.Sprintf("%s\t},\n", indentStr))
 	}
 
-	// Required fields
 	if len(schema.Required) > 0 {
 		sb.WriteString(fmt.Sprintf("%s\tRequired:    []string{", indentStr))
 		for i, req := range schema.Required {
@@ -466,22 +475,15 @@ func convertSchemaToGoCode(schemaInterface interface{}, indent int) string {
 		sb.WriteString("},\n")
 	}
 
-	// Array items
 	if schema.Items != nil && schema.Items.Schema != nil {
 		sb.WriteString(fmt.Sprintf("%s\tItems: &api.JSONSchema", indentStr))
 		sb.WriteString(convertSchemaToGoCode(schema.Items.Schema, indent+1))
 		sb.WriteString(",\n")
 	}
 
-	// Additional properties (for maps)
 	if schema.AdditionalProperties != nil && schema.AdditionalProperties.Schema != nil {
 		sb.WriteString(fmt.Sprintf("%s\tAdditionalProperties: &api.JSONSchema", indentStr))
 		sb.WriteString(convertSchemaToGoCode(schema.AdditionalProperties.Schema, indent+1))
 		sb.WriteString(",\n")
 	}
-
-	// Close the schema
-	sb.WriteString(fmt.Sprintf("%s}", indentStr))
-
-	return sb.String()
 }
