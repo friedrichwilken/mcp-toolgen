@@ -5,35 +5,25 @@ import (
 	"encoding/json"
 	"fmt"
 
-	internalk8s "github.com/containers/kubernetes-mcp-server/pkg/kubernetes"
+	"github.com/containers/kubernetes-mcp-server/pkg/api"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-{{if .IncludeComments}}
-// ToolHandlerParams defines the parameters for MCP tool handlers
-{{end}}
-type ToolHandlerParams struct {
-	Name      string                 `json:"name"`
-	Namespace string                 `json:"namespace,omitempty"`
-	Cluster   string                 `json:"cluster,omitempty"`
-	Args      map[string]interface{} `json:"args,omitempty"`
-}
 
 {{range $operation := .Operations}}
 {{if $.IncludeComments}}
 // Handle{{$operation | ToTitle}}{{$.CRD.Kind}} handles {{$operation}} operations for {{$.CRD.Kind}} resources
 {{end}}
-func Handle{{$operation | ToTitle}}{{$.CRD.Kind}}(params map[string]interface{}, clientManager internalk8s.ClientManager) (interface{}, error) {
+func Handle{{$operation | ToTitle}}{{$.CRD.Kind}}(params api.ToolHandlerParams) (*api.ToolCallResult, error) {
 	{{if eq $operation "create"}}
-	return handle{{$.CRD.Kind}}Create(params, clientManager)
+	return handle{{$.CRD.Kind}}Create(params)
 	{{else if eq $operation "get"}}
-	return handle{{$.CRD.Kind}}Get(params, clientManager)
+	return handle{{$.CRD.Kind}}Get(params)
 	{{else if eq $operation "list"}}
-	return handle{{$.CRD.Kind}}List(params, clientManager)
+	return handle{{$.CRD.Kind}}List(params)
 	{{else if eq $operation "update"}}
-	return handle{{$.CRD.Kind}}Update(params, clientManager)
+	return handle{{$.CRD.Kind}}Update(params)
 	{{else if eq $operation "delete"}}
-	return handle{{$.CRD.Kind}}Delete(params, clientManager)
+	return handle{{$.CRD.Kind}}Delete(params)
 	{{end}}
 }
 
@@ -42,74 +32,82 @@ func Handle{{$operation | ToTitle}}{{$.CRD.Kind}}(params map[string]interface{},
 {{if .IncludeComments}}
 // handle{{.CRD.Kind}}Create creates a new {{.CRD.Kind}} resource
 {{end}}
-func handle{{.CRD.Kind}}Create(params map[string]interface{}, clientManager internalk8s.ClientManager) (interface{}, error) {
+func handle{{.CRD.Kind}}Create(params api.ToolHandlerParams) (*api.ToolCallResult, error) {
 	{{if .IncludeComments}}
 	// Parse parameters
 	{{end}}
-	var handlerParams ToolHandlerParams
-	if err := parseParams(params, &handlerParams); err != nil {
-		return nil, fmt.Errorf("failed to parse parameters: %w", err)
-	}
+	args := params.GetArguments()
 
 	{{if .IncludeComments}}
 	// Get Kubernetes client
 	{{end}}
-	k8sClient, err := getK8sClient(clientManager, handlerParams.Cluster)
+	k8sClient, err := params.GetClient(getClusterName(args))
 	if err != nil {
-		return nil, fmt.Errorf("failed to get Kubernetes client: %w", err)
+		return api.NewToolCallResult("", fmt.Errorf("failed to get Kubernetes client: %w", err)), nil
 	}
 
 	{{if .IncludeComments}}
 	// Parse {{.CRD.Kind}} from args
 	{{end}}
 	{{.CRD.Kind | ToLower}} := &{{.CRD.Kind}}{}
-	if err := parseResource(handlerParams.Args, {{.CRD.Kind | ToLower}}); err != nil {
-		return nil, fmt.Errorf("failed to parse {{.CRD.Kind}}: %w", err)
+	if argsData, ok := args["args"].(map[string]interface{}); ok {
+		if err := parseResource(argsData, {{.CRD.Kind | ToLower}}); err != nil {
+			return api.NewToolCallResult("", fmt.Errorf("failed to parse {{.CRD.Kind}}: %w", err)), nil
+		}
+	} else {
+		return api.NewToolCallResult("", fmt.Errorf("args field is required")), nil
 	}
 
 	{{if .IncludeComments}}
 	// Set namespace if not specified
 	{{end}}
-	if {{.CRD.Kind | ToLower}}.Namespace == "" && handlerParams.Namespace != "" {
-		{{.CRD.Kind | ToLower}}.Namespace = handlerParams.Namespace
+	namespace := getNamespace(args)
+	if {{.CRD.Kind | ToLower}}.Namespace == "" && namespace != "" {
+		{{.CRD.Kind | ToLower}}.Namespace = namespace
 	}
 
 	{{if .IncludeComments}}
 	// Create the resource
 	{{end}}
 	{{.CRD.Kind | ToLower}}Client := New{{.CRD.Kind}}Client(k8sClient, {{.CRD.Kind | ToLower}}.Namespace)
-	if err := {{.CRD.Kind | ToLower}}Client.Create(context.TODO(), {{.CRD.Kind | ToLower}}); err != nil {
-		return nil, fmt.Errorf("failed to create {{.CRD.Kind}}: %w", err)
+	if err := {{.CRD.Kind | ToLower}}Client.Create(params.Context, {{.CRD.Kind | ToLower}}); err != nil {
+		return api.NewToolCallResult("", fmt.Errorf("failed to create {{.CRD.Kind}}: %w", err)), nil
 	}
 
-	return {{.CRD.Kind | ToLower}}, nil
+	{{if .IncludeComments}}
+	// Return success result
+	{{end}}
+	result, err := json.Marshal({{.CRD.Kind | ToLower}})
+	if err != nil {
+		return api.NewToolCallResult("", fmt.Errorf("failed to marshal result: %w", err)), nil
+	}
+
+	return api.NewToolCallResult(string(result), nil), nil
 }
 
 {{if .IncludeComments}}
 // handle{{.CRD.Kind}}Get retrieves a {{.CRD.Kind}} resource
 {{end}}
-func handle{{.CRD.Kind}}Get(params map[string]interface{}, clientManager internalk8s.ClientManager) (interface{}, error) {
+func handle{{.CRD.Kind}}Get(params api.ToolHandlerParams) (*api.ToolCallResult, error) {
 	{{if .IncludeComments}}
 	// Parse parameters
 	{{end}}
-	var handlerParams ToolHandlerParams
-	if err := parseParams(params, &handlerParams); err != nil {
-		return nil, fmt.Errorf("failed to parse parameters: %w", err)
-	}
+	args := params.GetArguments()
 
-	if handlerParams.Name == "" {
-		return nil, fmt.Errorf("name is required")
+	name, ok := args["name"].(string)
+	if !ok || name == "" {
+		return api.NewToolCallResult("", fmt.Errorf("name is required")), nil
 	}
 
 	{{if .IncludeComments}}
 	// Get Kubernetes client
 	{{end}}
-	k8sClient, err := getK8sClient(clientManager, handlerParams.Cluster)
+	k8sClient, err := params.GetClient(getClusterName(args))
 	if err != nil {
-		return nil, fmt.Errorf("failed to get Kubernetes client: %w", err)
+		return api.NewToolCallResult("", fmt.Errorf("failed to get Kubernetes client: %w", err)), nil
 	}
 
-	namespace := handlerParams.Namespace
+	namespace := getNamespace(args)
 	if namespace == "" {
 		namespace = "default"
 	}
@@ -118,35 +116,40 @@ func handle{{.CRD.Kind}}Get(params map[string]interface{}, clientManager interna
 	// Get the resource
 	{{end}}
 	{{.CRD.Kind | ToLower}}Client := New{{.CRD.Kind}}Client(k8sClient, namespace)
-	{{.CRD.Kind | ToLower}}, err := {{.CRD.Kind | ToLower}}Client.Get(context.TODO(), handlerParams.Name)
+	{{.CRD.Kind | ToLower}}, err := {{.CRD.Kind | ToLower}}Client.Get(params.Context, name)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get {{.CRD.Kind}} %s: %w", handlerParams.Name, err)
+		return api.NewToolCallResult("", fmt.Errorf("failed to get {{.CRD.Kind}} %s: %w", name, err)), nil
 	}
 
-	return {{.CRD.Kind | ToLower}}, nil
+	{{if .IncludeComments}}
+	// Return success result
+	{{end}}
+	result, err := json.Marshal({{.CRD.Kind | ToLower}})
+	if err != nil {
+		return api.NewToolCallResult("", fmt.Errorf("failed to marshal result: %w", err)), nil
+	}
+
+	return api.NewToolCallResult(string(result), nil), nil
 }
 
 {{if .IncludeComments}}
 // handle{{.CRD.Kind}}List lists {{.CRD.Kind}} resources
 {{end}}
-func handle{{.CRD.Kind}}List(params map[string]interface{}, clientManager internalk8s.ClientManager) (interface{}, error) {
+func handle{{.CRD.Kind}}List(params api.ToolHandlerParams) (*api.ToolCallResult, error) {
 	{{if .IncludeComments}}
 	// Parse parameters
 	{{end}}
-	var handlerParams ToolHandlerParams
-	if err := parseParams(params, &handlerParams); err != nil {
-		return nil, fmt.Errorf("failed to parse parameters: %w", err)
-	}
+	args := params.GetArguments()
 
 	{{if .IncludeComments}}
 	// Get Kubernetes client
 	{{end}}
-	k8sClient, err := getK8sClient(clientManager, handlerParams.Cluster)
+	k8sClient, err := params.GetClient(getClusterName(args))
 	if err != nil {
-		return nil, fmt.Errorf("failed to get Kubernetes client: %w", err)
+		return api.NewToolCallResult("", fmt.Errorf("failed to get Kubernetes client: %w", err)), nil
 	}
 
-	namespace := handlerParams.Namespace
+	namespace := getNamespace(args)
 	if namespace == "" {
 		namespace = "default"
 	}
@@ -155,85 +158,101 @@ func handle{{.CRD.Kind}}List(params map[string]interface{}, clientManager intern
 	// List resources
 	{{end}}
 	{{.CRD.Kind | ToLower}}Client := New{{.CRD.Kind}}Client(k8sClient, namespace)
-	list, err := {{.CRD.Kind | ToLower}}Client.List(context.TODO())
+	list, err := {{.CRD.Kind | ToLower}}Client.List(params.Context)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list {{.CRD.Kind}} resources: %w", err)
+		return api.NewToolCallResult("", fmt.Errorf("failed to list {{.CRD.Kind}} resources: %w", err)), nil
 	}
 
-	return list, nil
+	{{if .IncludeComments}}
+	// Return success result
+	{{end}}
+	result, err := json.Marshal(list)
+	if err != nil {
+		return api.NewToolCallResult("", fmt.Errorf("failed to marshal result: %w", err)), nil
+	}
+
+	return api.NewToolCallResult(string(result), nil), nil
 }
 
 {{if .IncludeComments}}
 // handle{{.CRD.Kind}}Update updates a {{.CRD.Kind}} resource
 {{end}}
-func handle{{.CRD.Kind}}Update(params map[string]interface{}, clientManager internalk8s.ClientManager) (interface{}, error) {
+func handle{{.CRD.Kind}}Update(params api.ToolHandlerParams) (*api.ToolCallResult, error) {
 	{{if .IncludeComments}}
 	// Parse parameters
 	{{end}}
-	var handlerParams ToolHandlerParams
-	if err := parseParams(params, &handlerParams); err != nil {
-		return nil, fmt.Errorf("failed to parse parameters: %w", err)
-	}
+	args := params.GetArguments()
 
 	{{if .IncludeComments}}
 	// Get Kubernetes client
 	{{end}}
-	k8sClient, err := getK8sClient(clientManager, handlerParams.Cluster)
+	k8sClient, err := params.GetClient(getClusterName(args))
 	if err != nil {
-		return nil, fmt.Errorf("failed to get Kubernetes client: %w", err)
+		return api.NewToolCallResult("", fmt.Errorf("failed to get Kubernetes client: %w", err)), nil
 	}
 
 	{{if .IncludeComments}}
 	// Parse {{.CRD.Kind}} from args
 	{{end}}
 	{{.CRD.Kind | ToLower}} := &{{.CRD.Kind}}{}
-	if err := parseResource(handlerParams.Args, {{.CRD.Kind | ToLower}}); err != nil {
-		return nil, fmt.Errorf("failed to parse {{.CRD.Kind}}: %w", err)
+	if argsData, ok := args["args"].(map[string]interface{}); ok {
+		if err := parseResource(argsData, {{.CRD.Kind | ToLower}}); err != nil {
+			return api.NewToolCallResult("", fmt.Errorf("failed to parse {{.CRD.Kind}}: %w", err)), nil
+		}
+	} else {
+		return api.NewToolCallResult("", fmt.Errorf("args field is required")), nil
 	}
 
 	{{if .IncludeComments}}
 	// Set namespace if not specified
 	{{end}}
-	if {{.CRD.Kind | ToLower}}.Namespace == "" && handlerParams.Namespace != "" {
-		{{.CRD.Kind | ToLower}}.Namespace = handlerParams.Namespace
+	namespace := getNamespace(args)
+	if {{.CRD.Kind | ToLower}}.Namespace == "" && namespace != "" {
+		{{.CRD.Kind | ToLower}}.Namespace = namespace
 	}
 
 	{{if .IncludeComments}}
 	// Update the resource
 	{{end}}
 	{{.CRD.Kind | ToLower}}Client := New{{.CRD.Kind}}Client(k8sClient, {{.CRD.Kind | ToLower}}.Namespace)
-	if err := {{.CRD.Kind | ToLower}}Client.Update(context.TODO(), {{.CRD.Kind | ToLower}}); err != nil {
-		return nil, fmt.Errorf("failed to update {{.CRD.Kind}}: %w", err)
+	if err := {{.CRD.Kind | ToLower}}Client.Update(params.Context, {{.CRD.Kind | ToLower}}); err != nil {
+		return api.NewToolCallResult("", fmt.Errorf("failed to update {{.CRD.Kind}}: %w", err)), nil
 	}
 
-	return {{.CRD.Kind | ToLower}}, nil
+	{{if .IncludeComments}}
+	// Return success result
+	{{end}}
+	result, err := json.Marshal({{.CRD.Kind | ToLower}})
+	if err != nil {
+		return api.NewToolCallResult("", fmt.Errorf("failed to marshal result: %w", err)), nil
+	}
+
+	return api.NewToolCallResult(string(result), nil), nil
 }
 
 {{if .IncludeComments}}
 // handle{{.CRD.Kind}}Delete deletes a {{.CRD.Kind}} resource
 {{end}}
-func handle{{.CRD.Kind}}Delete(params map[string]interface{}, clientManager internalk8s.ClientManager) (interface{}, error) {
+func handle{{.CRD.Kind}}Delete(params api.ToolHandlerParams) (*api.ToolCallResult, error) {
 	{{if .IncludeComments}}
 	// Parse parameters
 	{{end}}
-	var handlerParams ToolHandlerParams
-	if err := parseParams(params, &handlerParams); err != nil {
-		return nil, fmt.Errorf("failed to parse parameters: %w", err)
-	}
+	args := params.GetArguments()
 
-	if handlerParams.Name == "" {
-		return nil, fmt.Errorf("name is required")
+	name, ok := args["name"].(string)
+	if !ok || name == "" {
+		return api.NewToolCallResult("", fmt.Errorf("name is required")), nil
 	}
 
 	{{if .IncludeComments}}
 	// Get Kubernetes client
 	{{end}}
-	k8sClient, err := getK8sClient(clientManager, handlerParams.Cluster)
+	k8sClient, err := params.GetClient(getClusterName(args))
 	if err != nil {
-		return nil, fmt.Errorf("failed to get Kubernetes client: %w", err)
+		return api.NewToolCallResult("", fmt.Errorf("failed to get Kubernetes client: %w", err)), nil
 	}
 
-	namespace := handlerParams.Namespace
+	namespace := getNamespace(args)
 	if namespace == "" {
 		namespace = "default"
 	}
@@ -242,30 +261,28 @@ func handle{{.CRD.Kind}}Delete(params map[string]interface{}, clientManager inte
 	// Delete the resource
 	{{end}}
 	{{.CRD.Kind | ToLower}}Client := New{{.CRD.Kind}}Client(k8sClient, namespace)
-	if err := {{.CRD.Kind | ToLower}}Client.Delete(context.TODO(), handlerParams.Name); err != nil {
-		return nil, fmt.Errorf("failed to delete {{.CRD.Kind}} %s: %w", handlerParams.Name, err)
+	if err := {{.CRD.Kind | ToLower}}Client.Delete(params.Context, name); err != nil {
+		return api.NewToolCallResult("", fmt.Errorf("failed to delete {{.CRD.Kind}} %s: %w", name, err)), nil
 	}
 
-	return map[string]string{
+	{{if .IncludeComments}}
+	// Return success result
+	{{end}}
+	result := map[string]string{
 		"status": "deleted",
-		"name":   handlerParams.Name,
-	}, nil
+		"name":   name,
+	}
+	resultJSON, err := json.Marshal(result)
+	if err != nil {
+		return api.NewToolCallResult("", fmt.Errorf("failed to marshal result: %w", err)), nil
+	}
+
+	return api.NewToolCallResult(string(resultJSON), nil), nil
 }
 
 {{if .IncludeComments}}
 // Helper functions
 {{end}}
-
-{{if .IncludeComments}}
-// parseParams parses generic parameters into a structured format
-{{end}}
-func parseParams(params map[string]interface{}, target interface{}) error {
-	data, err := json.Marshal(params)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(data, target)
-}
 
 {{if .IncludeComments}}
 // parseResource parses resource data from args
@@ -283,11 +300,21 @@ func parseResource(args map[string]interface{}, target interface{}) error {
 }
 
 {{if .IncludeComments}}
-// getK8sClient gets a Kubernetes client for the specified cluster
+// getClusterName extracts cluster name from arguments
 {{end}}
-func getK8sClient(clientManager internalk8s.ClientManager, cluster string) (client.Client, error) {
-	if cluster == "" {
-		return clientManager.GetDefaultClient()
+func getClusterName(args map[string]interface{}) string {
+	if cluster, ok := args["cluster"].(string); ok {
+		return cluster
 	}
-	return clientManager.GetClient(cluster)
+	return ""
+}
+
+{{if .IncludeComments}}
+// getNamespace extracts namespace from arguments
+{{end}}
+func getNamespace(args map[string]interface{}) string {
+	if namespace, ok := args["namespace"].(string); ok {
+		return namespace
+	}
+	return ""
 }
