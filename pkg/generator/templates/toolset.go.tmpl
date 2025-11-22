@@ -1,8 +1,8 @@
 package {{.Package}}
 
 import (
-	"github.com/modelcontextprotocol/go-sdk/api"
-	internalk8s "github.com/friedrichwilken/extendable-kubernetes-mcp-server/internal/k8s"
+	"github.com/containers/kubernetes-mcp-server/pkg/api"
+	internalk8s "github.com/containers/kubernetes-mcp-server/pkg/kubernetes"
 )
 
 // {{.CRD.Kind}}Toolset provides MCP tools for managing {{.CRD.Kind}} custom resources
