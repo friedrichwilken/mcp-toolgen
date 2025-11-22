@@ -412,16 +412,16 @@ func normalizeSchemaInterface(schemaInterface interface{}) *apiextensionsv1.JSON
 // appendBasicSchemaFields appends type, description, and enum to schema code
 func appendBasicSchemaFields(sb *strings.Builder, schema *apiextensionsv1.JSONSchemaProps, indentStr string) {
 	if schema.Type != "" {
-		sb.WriteString(fmt.Sprintf("%s\tType:        %q,\n", indentStr, schema.Type))
+		fmt.Fprintf(sb, "%s\tType:        %q,\n", indentStr, schema.Type)
 	}
 
 	if schema.Description != "" {
 		desc := strings.ReplaceAll(schema.Description, `"`, `\"`)
-		sb.WriteString(fmt.Sprintf("%s\tDescription: %q,\n", indentStr, desc))
+		fmt.Fprintf(sb, "%s\tDescription: %q,\n", indentStr, desc)
 	}
 
 	if len(schema.Enum) > 0 {
-		sb.WriteString(fmt.Sprintf("%s\tEnum:        []any{", indentStr))
+		fmt.Fprintf(sb, "%s\tEnum:        []any{", indentStr)
 		for i, val := range schema.Enum {
 			if i > 0 {
 				sb.WriteString(", ")
@@ -435,54 +435,54 @@ func appendBasicSchemaFields(sb *strings.Builder, schema *apiextensionsv1.JSONSc
 // appendSchemaValidation appends validation constraints to schema code
 func appendSchemaValidation(sb *strings.Builder, schema *apiextensionsv1.JSONSchemaProps, indentStr string) {
 	if schema.Minimum != nil {
-		sb.WriteString(fmt.Sprintf("%s\tMinimum:     %v,\n", indentStr, *schema.Minimum))
+		fmt.Fprintf(sb, "%s\tMinimum:     %v,\n", indentStr, *schema.Minimum)
 	}
 	if schema.Maximum != nil {
-		sb.WriteString(fmt.Sprintf("%s\tMaximum:     %v,\n", indentStr, *schema.Maximum))
+		fmt.Fprintf(sb, "%s\tMaximum:     %v,\n", indentStr, *schema.Maximum)
 	}
 	if schema.MinLength != nil {
-		sb.WriteString(fmt.Sprintf("%s\tMinLength:   %v,\n", indentStr, *schema.MinLength))
+		fmt.Fprintf(sb, "%s\tMinLength:   %v,\n", indentStr, *schema.MinLength)
 	}
 	if schema.MaxLength != nil {
-		sb.WriteString(fmt.Sprintf("%s\tMaxLength:   %v,\n", indentStr, *schema.MaxLength))
+		fmt.Fprintf(sb, "%s\tMaxLength:   %v,\n", indentStr, *schema.MaxLength)
 	}
 	if schema.Pattern != "" {
-		sb.WriteString(fmt.Sprintf("%s\tPattern:     %q,\n", indentStr, schema.Pattern))
+		fmt.Fprintf(sb, "%s\tPattern:     %q,\n", indentStr, schema.Pattern)
 	}
 }
 
 // appendSchemaStructure appends properties, required fields, items, and additional properties
 func appendSchemaStructure(sb *strings.Builder, schema *apiextensionsv1.JSONSchemaProps, indentStr string, indent int) {
 	if len(schema.Properties) > 0 {
-		sb.WriteString(fmt.Sprintf("%s\tProperties: map[string]api.JSONSchema{\n", indentStr))
+		fmt.Fprintf(sb, "%s\tProperties: map[string]api.JSONSchema{\n", indentStr)
 		for propName := range schema.Properties {
 			propSchema := schema.Properties[propName]
-			sb.WriteString(fmt.Sprintf("%s\t\t%q: ", indentStr, propName))
+			fmt.Fprintf(sb, "%s\t\t%q: ", indentStr, propName)
 			sb.WriteString(convertSchemaToGoCode(&propSchema, indent+2))
 			sb.WriteString(",\n")
 		}
-		sb.WriteString(fmt.Sprintf("%s\t},\n", indentStr))
+		fmt.Fprintf(sb, "%s\t},\n", indentStr)
 	}
 
 	if len(schema.Required) > 0 {
-		sb.WriteString(fmt.Sprintf("%s\tRequired:    []string{", indentStr))
+		fmt.Fprintf(sb, "%s\tRequired:    []string{", indentStr)
 		for i, req := range schema.Required {
 			if i > 0 {
 				sb.WriteString(", ")
 			}
-			sb.WriteString(fmt.Sprintf("%q", req))
+			fmt.Fprintf(sb, "%q", req)
 		}
 		sb.WriteString("},\n")
 	}
 
 	if schema.Items != nil && schema.Items.Schema != nil {
-		sb.WriteString(fmt.Sprintf("%s\tItems: &api.JSONSchema", indentStr))
+		fmt.Fprintf(sb, "%s\tItems: &api.JSONSchema", indentStr)
 		sb.WriteString(convertSchemaToGoCode(schema.Items.Schema, indent+1))
 		sb.WriteString(",\n")
 	}
 
 	if schema.AdditionalProperties != nil && schema.AdditionalProperties.Schema != nil {
-		sb.WriteString(fmt.Sprintf("%s\tAdditionalProperties: &api.JSONSchema", indentStr))
+		fmt.Fprintf(sb, "%s\tAdditionalProperties: &api.JSONSchema", indentStr)
 		sb.WriteString(convertSchemaToGoCode(schema.AdditionalProperties.Schema, indent+1))
 		sb.WriteString(",\n")
 	}
