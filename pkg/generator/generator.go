@@ -138,15 +138,16 @@ func (g *Generator) createTemplateData(toolsetInfo *analyzer.ToolsetInfo) map[st
 		"MCPImports":        toolsetInfo.GetMCPImports(),
 
 		// Helper functions for templates
-		"ToLower":     toLower,
-		"ToUpper":     toUpper,
-		"ToTitle":     toTitle,
-		"ToCamelCase": toCamelCase,
-		"ToSnakeCase": toSnakeCase,
-		"Pluralize":   pluralize,
-		"Contains":    contains,
-		"Join":        join,
-		"Quote":       quote,
+		"ToLower":               toLower,
+		"ToUpper":               toUpper,
+		"ToTitle":               toTitle,
+		"ToCamelCase":           toCamelCase,
+		"ToSnakeCase":           toSnakeCase,
+		"Pluralize":             pluralize,
+		"Contains":              contains,
+		"Join":                  join,
+		"Quote":                 quote,
+		"ConvertSchemaToGoCode": convertSchemaToGoCode,
 	}
 }
 

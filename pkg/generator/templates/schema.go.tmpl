@@ -54,13 +54,14 @@ func {{$operation}}{{$.CRD.Kind}}Schema() api.JSONSchema {
 						Required: []string{"name"},
 					},
 					{{if $.SpecType}}
+					{{if index $.CRD.Schema.Properties "spec"}}
+					"spec": {{ConvertSchemaToGoCode (index $.CRD.Schema.Properties "spec") 5}},
+					{{else}}
 					"spec": {
 						Type:        "object",
 						Description: "{{$.CRD.Kind}} specification",
-						{{if $.IncludeComments}}
-						// TODO: Add detailed spec schema based on CRD
-						{{end}}
 					},
+					{{end}}
 					{{end}}
 				},
 				Required: []string{"metadata"},
@@ -154,13 +155,14 @@ func {{$operation}}{{$.CRD.Kind}}Schema() api.JSONSchema {
 						Required: []string{"name"},
 					},
 					{{if $.SpecType}}
+					{{if index $.CRD.Schema.Properties "spec"}}
+					"spec": {{ConvertSchemaToGoCode (index $.CRD.Schema.Properties "spec") 5}},
+					{{else}}
 					"spec": {
 						Type:        "object",
 						Description: "{{$.CRD.Kind}} specification",
-						{{if $.IncludeComments}}
-						// TODO: Add detailed spec schema based on CRD
-						{{end}}
 					},
+					{{end}}
 					{{end}}
 				},
 				Required: []string{"metadata"},

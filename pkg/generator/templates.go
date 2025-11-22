@@ -9,15 +9,16 @@ import (
 // loadEmbeddedTemplates loads templates embedded in the binary
 func (g *Generator) loadEmbeddedTemplates() error {
 	templateFuncs := template.FuncMap{
-		"ToLower":     toLower,
-		"ToUpper":     toUpper,
-		"ToTitle":     toTitle,
-		"ToCamelCase": toCamelCase,
-		"ToSnakeCase": toSnakeCase,
-		"Pluralize":   pluralize,
-		"Contains":    contains,
-		"Join":        join,
-		"Quote":       quote,
+		"ToLower":               toLower,
+		"ToUpper":               toUpper,
+		"ToTitle":               toTitle,
+		"ToCamelCase":           toCamelCase,
+		"ToSnakeCase":           toSnakeCase,
+		"Pluralize":             pluralize,
+		"Contains":              contains,
+		"Join":                  join,
+		"Quote":                 quote,
+		"ConvertSchemaToGoCode": convertSchemaToGoCode,
 		// Add helper functions for template generation
 		"generateMethodName": generateMethodName,
 		"generateToolName":   generateToolName,
@@ -42,17 +43,18 @@ func (g *Generator) loadEmbeddedTemplates() error {
 // createInlineTemplates creates basic templates inline when template files aren't available
 func (g *Generator) createInlineTemplates() error {
 	templateFuncs := template.FuncMap{
-		"ToLower":            toLower,
-		"ToUpper":            toUpper,
-		"ToTitle":            toTitle,
-		"ToCamelCase":        toCamelCase,
-		"ToSnakeCase":        toSnakeCase,
-		"Pluralize":          pluralize,
-		"Contains":           contains,
-		"Join":               join,
-		"Quote":              quote,
-		"generateMethodName": generateMethodName,
-		"generateToolName":   generateToolName,
+		"ToLower":               toLower,
+		"ToUpper":               toUpper,
+		"ToTitle":               toTitle,
+		"ToCamelCase":           toCamelCase,
+		"ToSnakeCase":           toSnakeCase,
+		"Pluralize":             pluralize,
+		"Contains":              contains,
+		"Join":                  join,
+		"Quote":                 quote,
+		"ConvertSchemaToGoCode": convertSchemaToGoCode,
+		"generateMethodName":    generateMethodName,
+		"generateToolName":      generateToolName,
 	}
 
 	g.templates = template.New("").Funcs(templateFuncs)
