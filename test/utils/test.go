@@ -103,3 +103,29 @@ func DirExists(path string) bool {
 	info, err := os.Stat(path)
 	return err == nil && info.IsDir()
 }
+
+// GetFixturePath returns the path to a test fixture file.
+// Looks for fixtures in test/fixtures/ directory relative to the project root.
+func GetFixturePath(t *testing.T, filename string) string {
+	t.Helper()
+
+	// Start from test/utils/ and go up to project root
+	_, file, _, _ := runtime.Caller(0)
+	projectRoot := filepath.Join(filepath.Dir(file), "..", "..")
+	fixturePath := filepath.Join(projectRoot, "test", "fixtures", filename)
+
+	return fixturePath
+}
+
+// ReadFileContent reads a file and returns its content as string.
+// Helper for reading generated code and test fixtures with testing.T for better error reporting.
+func ReadFileContent(t *testing.T, path string) string {
+	t.Helper()
+
+	content, err := os.ReadFile(path) // #nosec G304 -- test helper for reading test files
+	if err != nil {
+		t.Fatalf("Failed to read file %s: %v", path, err)
+	}
+
+	return string(content)
+}
