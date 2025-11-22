@@ -29,7 +29,7 @@ type {{.CRD.Kind}} struct {
 {{end}}
 type {{.CRD.Kind}}Spec struct {
 	{{range $field := .SpecType.GetStructFields}}
-	{{$field.GetGoFieldName}} {{$field.GoType}} `{{$field.JSONTag}}`{{if $.IncludeComments}}{{if $field.Description}} // {{$field.Description}}{{end}}{{end}}
+	{{$field.GetGoFieldName}} {{$field.GoType}} `{{$field.JSONTag}}`{{if $.IncludeComments}}{{if $field.Description}} // {{EscapeString $field.Description}}{{end}}{{end}}
 	{{end}}
 }
 {{end}}
@@ -40,9 +40,49 @@ type {{.CRD.Kind}}Spec struct {
 {{end}}
 type {{.CRD.Kind}}Status struct {
 	{{range $field := .StatusType.GetStructFields}}
-	{{$field.GetGoFieldName}} {{$field.GoType}} `{{$field.JSONTag}}`{{if $.IncludeComments}}{{if $field.Description}} // {{$field.Description}}{{end}}{{end}}
+	{{$field.GetGoFieldName}} {{$field.GoType}} `{{$field.JSONTag}}`{{if $.IncludeComments}}{{if $field.Description}} // {{EscapeString $field.Description}}{{end}}{{end}}
 	{{end}}
 }
+{{end}}
+
+{{/* Generate nested types from SpecType */}}
+{{if .SpecType}}
+{{- template "nestedTypes" .SpecType -}}
+{{end}}
+
+{{/* Generate nested types from StatusType */}}
+{{if .StatusType}}
+{{- template "nestedTypes" .StatusType -}}
+{{end}}
+
+{{/* Template for recursively generating nested types */}}
+{{define "nestedTypes"}}
+{{- range $field := .GetStructFields -}}
+{{- if $field.IsComplexType}}
+
+// {{$field.Name}} represents a nested type in the schema
+type {{$field.Name}} struct {
+	{{- range $nestedField := $field.GetStructFields}}
+	{{$nestedField.GetGoFieldName}} {{$nestedField.GoType}} `{{$nestedField.JSONTag}}`{{if $nestedField.Description}} // {{EscapeString $nestedField.Description}}{{end}}
+	{{- end}}
+}
+{{/* Recursively generate nested types within this type */}}
+{{- template "nestedTypes" $field -}}
+{{- end -}}
+{{- if $field.Items -}}
+{{- if $field.Items.IsComplexType}}
+
+// {{$field.Items.Name}} represents an array item type in the schema
+type {{$field.Items.Name}} struct {
+	{{- range $nestedField := $field.Items.GetStructFields}}
+	{{$nestedField.GetGoFieldName}} {{$nestedField.GoType}} `{{$nestedField.JSONTag}}`{{if $nestedField.Description}} // {{EscapeString $nestedField.Description}}{{end}}
+	{{- end}}
+}
+{{/* Recursively generate nested types within array items */}}
+{{- template "nestedTypes" $field.Items -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}
 {{end}}
 
 {{if .IncludeComments}}
