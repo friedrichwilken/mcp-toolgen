@@ -53,6 +53,9 @@ type CRDInfo struct {
 
 	// Original CRD for reference
 	CRD *apiextensionsv1.CustomResourceDefinition
+
+	// Original YAML content for embedding as MCP resource
+	YAMLContent string
 }
 
 // ParseCRDFromFile parses a CRD from a YAML file
@@ -100,7 +103,18 @@ func (a *CRDAnalyzer) ParseCRDFromYAML(yamlData []byte) (*CRDInfo, error) {
 		return nil, fmt.Errorf("object is not a CustomResourceDefinition, got %T", obj)
 	}
 
-	return a.AnalyzeCRD(crd)
+	info, err := a.AnalyzeCRD(crd)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store original YAML content for embedding as MCP resource
+	// Replace backticks with escaped version to avoid breaking Go raw string literals
+	yamlContent := string(yamlData)
+	yamlContent = strings.ReplaceAll(yamlContent, "`", "` + \"`\" + `")
+	info.YAMLContent = yamlContent
+
+	return info, nil
 }
 
 // AnalyzeCRD analyzes a CRD and extracts relevant information

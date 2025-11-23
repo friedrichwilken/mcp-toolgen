@@ -1,6 +1,8 @@
 package {{.Package}}
 
 import (
+	"context"
+
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
 	internalk8s "github.com/containers/kubernetes-mcp-server/pkg/kubernetes"
 	"github.com/containers/kubernetes-mcp-server/pkg/toolsets"
@@ -9,8 +11,9 @@ import (
 // {{.CRD.Kind}}Toolset provides MCP tools for managing {{.CRD.Kind}} custom resources
 type {{.CRD.Kind}}Toolset struct{}
 
-// Ensure {{.CRD.Kind}}Toolset implements api.Toolset interface
+// Ensure {{.CRD.Kind}}Toolset implements api.Toolset and api.ResourceProvider interfaces
 var _ api.Toolset = (*{{.CRD.Kind}}Toolset)(nil)
+var _ api.ResourceProvider = (*{{.CRD.Kind}}Toolset)(nil)
 
 // GetName returns the name of this toolset
 func (t *{{.CRD.Kind}}Toolset) GetName() string {
@@ -30,6 +33,21 @@ func (t *{{.CRD.Kind}}Toolset) GetTools(o internalk8s.Openshift) []api.ServerToo
 		{{- end}}
 	}
 }
+
+// RegisterResources registers MCP resources for this toolset
+func (t *{{.CRD.Kind}}Toolset) RegisterResources(registerFunc func(uri, name, mimeType string, handler func(context.Context) (string, error)) error) error {
+	return registerFunc(
+		"crd://{{.CRD.Group}}/{{.CRD.Version}}/{{.CRD.Kind}}",
+		"{{.CRD.Kind}} {{.CRD.Version}} CRD",
+		"text/yaml",
+		func(_ context.Context) (string, error) {
+			return embedded{{.CRD.Kind}}CRDYAML, nil
+		},
+	)
+}
+
+// embedded{{.CRD.Kind}}CRDYAML contains the complete CRD YAML definition
+const embedded{{.CRD.Kind}}CRDYAML = `{{.CRD.YAMLContent}}`
 
 {{range $operation := .Operations}}
 // {{generateMethodName $operation $.CRD.Plural | ToLower}}Tool creates the MCP tool for {{$operation}} operations
