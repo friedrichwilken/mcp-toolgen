@@ -6,14 +6,15 @@ import (
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
 	internalk8s "github.com/containers/kubernetes-mcp-server/pkg/kubernetes"
 	"github.com/containers/kubernetes-mcp-server/pkg/toolsets"
+	ek8sapi "github.com/friedrichwilken/extendable-kubernetes-mcp-server/pkg/api"
 )
 
 // {{.CRD.Kind}}Toolset provides MCP tools for managing {{.CRD.Kind}} custom resources
 type {{.CRD.Kind}}Toolset struct{}
 
-// Ensure {{.CRD.Kind}}Toolset implements api.Toolset and api.ResourceProvider interfaces
+// Ensure {{.CRD.Kind}}Toolset implements api.Toolset and ek8sapi.ResourceProvider interfaces
 var _ api.Toolset = (*{{.CRD.Kind}}Toolset)(nil)
-var _ api.ResourceProvider = (*{{.CRD.Kind}}Toolset)(nil)
+var _ ek8sapi.ResourceProvider = (*{{.CRD.Kind}}Toolset)(nil)
 
 // GetName returns the name of this toolset
 func (t *{{.CRD.Kind}}Toolset) GetName() string {
