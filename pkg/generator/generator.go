@@ -123,19 +123,20 @@ func (g *Generator) generateFile(toolsetInfo *analyzer.ToolsetInfo, templateName
 // createTemplateData creates the data structure passed to templates
 func (g *Generator) createTemplateData(toolsetInfo *analyzer.ToolsetInfo) map[string]interface{} {
 	return map[string]interface{}{
-		"Package":           g.config.PackageName,
-		"ModulePath":        g.config.ModulePath,
-		"IncludeComments":   g.config.IncludeComments,
-		"Toolset":           toolsetInfo,
-		"CRD":               toolsetInfo.CRD,
-		"MainType":          toolsetInfo.MainType,
-		"SpecType":          toolsetInfo.SpecType,
-		"StatusType":        toolsetInfo.StatusType,
-		"ListType":          toolsetInfo.ListType,
-		"Operations":        toolsetInfo.GetResourceOperations(),
-		"Imports":           toolsetInfo.GetImports(),
-		"KubernetesImports": toolsetInfo.GetKubernetesImports(),
-		"MCPImports":        toolsetInfo.GetMCPImports(),
+		"Package":             g.config.PackageName,
+		"ModulePath":          g.config.ModulePath,
+		"IncludeComments":     g.config.IncludeComments,
+		"GenerateCRDResource": toolsetInfo.Config.GenerateCRDResource,
+		"Toolset":             toolsetInfo,
+		"CRD":                 toolsetInfo.CRD,
+		"MainType":            toolsetInfo.MainType,
+		"SpecType":            toolsetInfo.SpecType,
+		"StatusType":          toolsetInfo.StatusType,
+		"ListType":            toolsetInfo.ListType,
+		"Operations":          toolsetInfo.GetResourceOperations(),
+		"Imports":             toolsetInfo.GetImports(),
+		"KubernetesImports":   toolsetInfo.GetKubernetesImports(),
+		"MCPImports":          toolsetInfo.GetMCPImports(),
 
 		// Helper functions for templates
 		"ToLower":               toLower,

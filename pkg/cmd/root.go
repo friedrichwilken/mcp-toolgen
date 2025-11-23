@@ -15,20 +15,21 @@ import (
 )
 
 var (
-	cfgFile         string
-	verbose         bool
-	dryRun          bool
-	overwrite       bool
-	crudOperations  string
-	crdFile         string
-	crdDir          string
-	outputDir       string
-	outputBase      string
-	packageName     string
-	modulePath      string
-	templateDir     string
-	registerToolset bool
-	modulesFilePath string
+	cfgFile             string
+	verbose             bool
+	dryRun              bool
+	overwrite           bool
+	crudOperations      string
+	crdFile             string
+	crdDir              string
+	outputDir           string
+	outputBase          string
+	packageName         string
+	modulePath          string
+	templateDir         string
+	registerToolset     bool
+	modulesFilePath     string
+	generateCRDResource bool
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -87,6 +88,8 @@ func init() {
 	rootCmd.Flags().StringVar(&modulePath, "module-path", "github.com/example/project", "Go module path")
 	rootCmd.Flags().StringVar(&templateDir, "templates", "", "custom template directory (optional)")
 	rootCmd.Flags().StringVar(&crudOperations, "crud", "crud", "CRUD operations to generate (c=create, r=read, u=update, d=delete)")
+	rootCmd.Flags().BoolVar(&generateCRDResource, "generate-crd-resource", false,
+		"generate MCP resource for CRD definition (requires ek8sms with resource support)")
 
 	// Registration flags
 	rootCmd.Flags().BoolVar(&registerToolset, "register", false, "automatically add import to modules.go after generation")
@@ -247,6 +250,7 @@ func generateFromSingleCRD() error {
 	config.OutputDir = outputDir
 	config.TemplateDir = templateDir
 	config.SelectedOperations = parseCRUDOperations(crudOperations)
+	config.GenerateCRDResource = generateCRDResource
 
 	if config.PackageName == "" {
 		config.PackageName = crdInfo.GetPackageName()
@@ -312,6 +316,7 @@ func generateFromDirectory() error {
 		config.OutputDir = crdOutputDir
 		config.TemplateDir = templateDir
 		config.SelectedOperations = parseCRUDOperations(crudOperations)
+		config.GenerateCRDResource = generateCRDResource
 
 		// Create toolset info
 		toolsetInfo, err := analyzer.NewToolsetInfo(crdInfo, config)
