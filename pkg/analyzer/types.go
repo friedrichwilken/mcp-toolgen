@@ -17,11 +17,12 @@ type GenerationConfig struct {
 	CustomTemplates map[string]string
 
 	// Generation options
-	GenerateCRUD       bool
-	GenerateTests      bool
-	GenerateSchemas    bool
-	IncludeComments    bool
-	SelectedOperations []string
+	GenerateCRUD        bool
+	GenerateTests       bool
+	GenerateSchemas     bool
+	GenerateCRDResource bool
+	IncludeComments     bool
+	SelectedOperations  []string
 
 	// Kubernetes integration
 	UseControllerRuntime bool
@@ -35,6 +36,7 @@ func DefaultGenerationConfig() *GenerationConfig {
 		GenerateCRUD:         true,
 		GenerateTests:        false,
 		GenerateSchemas:      true,
+		GenerateCRDResource:  false,
 		IncludeComments:      true,
 		UseControllerRuntime: true,
 		MultiClusterSupport:  true,
