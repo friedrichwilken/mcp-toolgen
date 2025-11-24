@@ -19,23 +19,47 @@ func RegisterInModulesFile(modulesFilePath, importPath string) error {
 
 	// Check if import already exists
 	importLine := fmt.Sprintf("import _ %q", importPath)
-	if strings.Contains(string(content), importLine) {
+	blockImportLine := fmt.Sprintf("_ %q", importPath)
+	if strings.Contains(string(content), importLine) || strings.Contains(string(content), blockImportLine) {
 		// Already registered, nothing to do
 		return nil
 	}
 
-	// Find the last import statement
+	// Find the last import statement (handle both single-line and block imports)
 	lines := strings.Split(string(content), "\n")
 	lastImportIdx := -1
+	inImportBlock := false
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
+		// Check for import block start
+		if strings.HasPrefix(trimmed, "import (") {
+			inImportBlock = true
+			continue
+		}
+		// Check for import block end
+		if inImportBlock && trimmed == ")" {
+			// Found the end of the import block - insert before the closing paren
+			lastImportIdx = i - 1
+			break
+		}
+		// Check for single-line import
 		if strings.HasPrefix(trimmed, "import _") {
+			lastImportIdx = i
+		}
+		// Check for import inside block
+		if inImportBlock && strings.HasPrefix(trimmed, "_") {
 			lastImportIdx = i
 		}
 	}
 
 	if lastImportIdx == -1 {
 		return fmt.Errorf("no import statements found in modules.go")
+	}
+
+	// Format import line for block style (just the import without "import" keyword)
+	newImportLine := fmt.Sprintf("\t_ %q", importPath)
+	if inImportBlock {
+		importLine = newImportLine
 	}
 
 	// Insert new import after the last import

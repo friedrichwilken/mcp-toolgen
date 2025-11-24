@@ -1,8 +1,10 @@
 package {{.Package}}
 
 import (
+	{{- if or .GenerateCRDResource .GenerateDocResource}}
 	"context"
 
+	{{- end}}
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
 	internalk8s "github.com/containers/kubernetes-mcp-server/pkg/kubernetes"
 	"github.com/containers/kubernetes-mcp-server/pkg/toolsets"
