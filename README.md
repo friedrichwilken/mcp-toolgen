@@ -16,8 +16,11 @@ MCP Toolgen analyzes CRD YAML files and generates complete Go packages with:
 - **CRD Analysis**: Parse and analyze CRD YAML files with OpenAPI v3 schema support
 - **Code Generation**: Template-based Go code generation following established patterns
 - **MCP Integration**: Generated toolsets seamlessly integrate with MCP servers
+- **MCP Resource Support**: Optional CRD resource generation for LLM access to definitions
 - **Multi-cluster Support**: Generated code supports multi-cluster operations
 - **Type Safety**: Full Go type generation from CRD schemas
+- **Flexible CRUD**: Generate specific operations (create, read, update, delete) as needed
+- **Backward Compatible**: Default settings work with standard ek8sms (no resource support needed)
 
 ## Installation
 
@@ -39,26 +42,76 @@ make install
 
 ```bash
 # Generate toolset from a single CRD
-mcp-toolgen --crd ./crds/function-crd.yaml --output ./pkg/functions --package functions
+mcp-toolgen --crd ./crds/function-crd.yaml \
+            --output ./pkg/functions \
+            --package functions \
+            --module-path github.com/myorg/myproject
 
 # Generate toolsets from a directory of CRDs
-mcp-toolgen --crd-dir ./crds --output-base ./pkg
+mcp-toolgen --crd-dir ./crds \
+            --output-base ./pkg \
+            --module-path github.com/myorg/myproject
+
+# Generate with MCP resource support (requires ek8sms with resource support)
+mcp-toolgen --crd ./crds/function-crd.yaml \
+            --output ./pkg/functions \
+            --package functions \
+            --module-path github.com/myorg/myproject \
+            --generate-crd-resource
+
+# Generate with specific CRUD operations only
+mcp-toolgen --crd ./crds/function-crd.yaml \
+            --output ./pkg/functions \
+            --package functions \
+            --module-path github.com/myorg/myproject \
+            --crud cr  # Only create and read operations
 
 # Generate with custom templates
-mcp-toolgen --crd ./crds/function-crd.yaml --templates ./custom-templates --output ./pkg/functions
+mcp-toolgen --crd ./crds/function-crd.yaml \
+            --templates ./custom-templates \
+            --output ./pkg/functions \
+            --package functions \
+            --module-path github.com/myorg/myproject
 ```
+
+### Command-Line Flags
+
+| Flag | Description | Required | Default |
+|------|-------------|----------|---------|
+| `--crd` | Path to a single CRD YAML file | Yes (or `--crd-dir`) | - |
+| `--crd-dir` | Directory containing multiple CRD YAML files | Yes (or `--crd`) | - |
+| `--output` | Output directory for generated code (single CRD) | Yes (with `--crd`) | - |
+| `--output-base` | Base directory for multi-CRD generation | Yes (with `--crd-dir`) | - |
+| `--package` | Go package name | No | CRD plural name |
+| `--module-path` | Go module path (e.g., github.com/myorg/myproject) | Yes | - |
+| `--crud` | CRUD operations to generate (c=create, r=read, u=update, d=delete) | No | `crud` (all) |
+| `--generate-crd-resource` | Generate MCP resource for CRD definition | No | `false` |
+| `--templates` | Custom template directory | No | embedded templates |
+| `--overwrite` | Overwrite existing files | No | `false` |
+| `--dry-run` | Preview generation without creating files | No | `false` |
+| `--verbose` | Enable verbose logging | No | `false` |
 
 ### Integration with extendable-kubernetes-mcp-server
 
 1. **Generate toolsets** in your ek8sms project:
    ```bash
-   mcp-toolgen --crd ./crds/function-crd.yaml --output ./pkg/functions --package functions
+   mcp-toolgen --crd ./crds/function-crd.yaml \
+               --output ./pkg/functions \
+               --package functions \
+               --module-path github.com/friedrichwilken/extendable-kubernetes-mcp-server
+
+   # Optional: Generate with MCP resource support
+   mcp-toolgen --crd ./crds/function-crd.yaml \
+               --output ./pkg/functions \
+               --package functions \
+               --module-path github.com/friedrichwilken/extendable-kubernetes-mcp-server \
+               --generate-crd-resource
    ```
 
 2. **Generated package structure**:
    ```
    pkg/functions/
-   ├── toolset.go      # MCP toolset registration
+   ├── toolset.go      # MCP toolset registration (+ resource support if enabled)
    ├── types.go        # Go types from CRD schema
    ├── client.go       # Kubernetes client wrapper
    ├── handlers.go     # MCP tool handlers
@@ -67,6 +120,12 @@ mcp-toolgen --crd ./crds/function-crd.yaml --templates ./custom-templates --outp
    ```
 
 3. **Auto-registration**: Generated toolsets automatically register with the MCP server via `init()` functions.
+
+4. **MCP Resource Support** (optional): When `--generate-crd-resource` is enabled:
+   - Generated toolset implements `ResourceProvider` interface
+   - CRD YAML is embedded and exposed as an MCP resource
+   - Allows LLMs to access the CRD definition directly
+   - Requires ek8sms with resource support enabled
 
 ## Architecture
 
