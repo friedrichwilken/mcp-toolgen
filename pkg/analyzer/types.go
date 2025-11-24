@@ -21,6 +21,8 @@ type GenerationConfig struct {
 	GenerateTests       bool
 	GenerateSchemas     bool
 	GenerateCRDResource bool
+	GenerateDocResource bool
+	DocResourcePath     string
 	IncludeComments     bool
 	SelectedOperations  []string
 
@@ -37,6 +39,7 @@ func DefaultGenerationConfig() *GenerationConfig {
 		GenerateTests:        false,
 		GenerateSchemas:      true,
 		GenerateCRDResource:  false,
+		GenerateDocResource:  false,
 		IncludeComments:      true,
 		UseControllerRuntime: true,
 		MultiClusterSupport:  true,

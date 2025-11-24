@@ -30,6 +30,7 @@ var (
 	registerToolset     bool
 	modulesFilePath     string
 	generateCRDResource bool
+	generateDocResource string
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -90,6 +91,8 @@ func init() {
 	rootCmd.Flags().StringVar(&crudOperations, "crud", "crud", "CRUD operations to generate (c=create, r=read, u=update, d=delete)")
 	rootCmd.Flags().BoolVar(&generateCRDResource, "generate-crd-resource", false,
 		"generate MCP resource for CRD definition (requires ek8sms with resource support)")
+	rootCmd.Flags().StringVar(&generateDocResource, "generate-doc-resource", "",
+		"generate MCP resource for documentation (file path or URL, e.g., ./docs.md or https://raw.githubusercontent.com/...)")
 
 	// Registration flags
 	rootCmd.Flags().BoolVar(&registerToolset, "register", false, "automatically add import to modules.go after generation")
@@ -243,6 +246,21 @@ func generateFromSingleCRD() error {
 		fmt.Printf("Parsed CRD: %s (%s)\n", crdInfo.Kind, crdInfo.GetAPIVersion())
 	}
 
+	// Load documentation if requested
+	if generateDocResource != "" {
+		if verbose {
+			fmt.Printf("Loading documentation from: %s\n", generateDocResource)
+		}
+		docContent, err := analyzer.LoadDocumentationContent(generateDocResource)
+		if err != nil {
+			return fmt.Errorf("failed to load documentation: %w", err)
+		}
+		crdInfo.DocContent = docContent
+		if verbose {
+			fmt.Printf("Loaded documentation: %d bytes\n", len(docContent))
+		}
+	}
+
 	// Create generation config
 	config := analyzer.DefaultGenerationConfig()
 	config.PackageName = packageName
@@ -251,6 +269,8 @@ func generateFromSingleCRD() error {
 	config.TemplateDir = templateDir
 	config.SelectedOperations = parseCRUDOperations(crudOperations)
 	config.GenerateCRDResource = generateCRDResource
+	config.GenerateDocResource = generateDocResource != ""
+	config.DocResourcePath = generateDocResource
 
 	if config.PackageName == "" {
 		config.PackageName = crdInfo.GetPackageName()
@@ -305,6 +325,22 @@ func generateFromDirectory() error {
 			continue
 		}
 
+		// Load documentation if requested
+		if generateDocResource != "" {
+			if verbose {
+				fmt.Printf("Loading documentation from: %s\n", generateDocResource)
+			}
+			docContent, err := analyzer.LoadDocumentationContent(generateDocResource)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: failed to load documentation for %s: %v\n", crdFile, err)
+				continue
+			}
+			crdInfo.DocContent = docContent
+			if verbose {
+				fmt.Printf("Loaded documentation: %d bytes\n", len(docContent))
+			}
+		}
+
 		// Create output directory for this CRD
 		packageName := crdInfo.GetPackageName()
 		crdOutputDir := filepath.Join(outputBase, packageName)
@@ -317,6 +353,8 @@ func generateFromDirectory() error {
 		config.TemplateDir = templateDir
 		config.SelectedOperations = parseCRUDOperations(crudOperations)
 		config.GenerateCRDResource = generateCRDResource
+		config.GenerateDocResource = generateDocResource != ""
+		config.DocResourcePath = generateDocResource
 
 		// Create toolset info
 		toolsetInfo, err := analyzer.NewToolsetInfo(crdInfo, config)
