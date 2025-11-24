@@ -127,6 +127,7 @@ func (g *Generator) createTemplateData(toolsetInfo *analyzer.ToolsetInfo) map[st
 		"ModulePath":          g.config.ModulePath,
 		"IncludeComments":     g.config.IncludeComments,
 		"GenerateCRDResource": toolsetInfo.Config.GenerateCRDResource,
+		"GenerateDocResource": toolsetInfo.Config.GenerateDocResource,
 		"Toolset":             toolsetInfo,
 		"CRD":                 toolsetInfo.CRD,
 		"MainType":            toolsetInfo.MainType,

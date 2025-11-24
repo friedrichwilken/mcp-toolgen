@@ -6,7 +6,7 @@ import (
 	"github.com/containers/kubernetes-mcp-server/pkg/api"
 	internalk8s "github.com/containers/kubernetes-mcp-server/pkg/kubernetes"
 	"github.com/containers/kubernetes-mcp-server/pkg/toolsets"
-	{{- if .GenerateCRDResource}}
+	{{- if or .GenerateCRDResource .GenerateDocResource}}
 	ek8sapi "github.com/friedrichwilken/extendable-kubernetes-mcp-server/pkg/api"
 	{{- end}}
 )
@@ -14,9 +14,9 @@ import (
 // {{.CRD.Kind}}Toolset provides MCP tools for managing {{.CRD.Kind}} custom resources
 type {{.CRD.Kind}}Toolset struct{}
 
-// Ensure {{.CRD.Kind}}Toolset implements api.Toolset{{if .GenerateCRDResource}} and ek8sapi.ResourceProvider{{end}} interfaces
+// Ensure {{.CRD.Kind}}Toolset implements api.Toolset{{if or .GenerateCRDResource .GenerateDocResource}} and ek8sapi.ResourceProvider{{end}} interfaces
 var _ api.Toolset = (*{{.CRD.Kind}}Toolset)(nil)
-{{- if .GenerateCRDResource}}
+{{- if or .GenerateCRDResource .GenerateDocResource}}
 var _ ek8sapi.ResourceProvider = (*{{.CRD.Kind}}Toolset)(nil)
 {{- end}}
 
@@ -39,22 +39,48 @@ func (t *{{.CRD.Kind}}Toolset) GetTools(o internalk8s.Openshift) []api.ServerToo
 	}
 }
 
-{{- if .GenerateCRDResource}}
+{{- if or .GenerateCRDResource .GenerateDocResource}}
 
 // RegisterResources registers MCP resources for this toolset
 func (t *{{.CRD.Kind}}Toolset) RegisterResources(registerFunc func(uri, name, mimeType string, handler func(context.Context) (string, error)) error) error {
-	return registerFunc(
+	{{- if .GenerateCRDResource}}
+	// Register CRD resource
+	if err := registerFunc(
 		"crd://{{.CRD.Group}}/{{.CRD.Version}}/{{.CRD.Kind}}",
 		"{{.CRD.Kind}} {{.CRD.Version}} CRD",
 		"text/yaml",
 		func(_ context.Context) (string, error) {
 			return embedded{{.CRD.Kind}}CRDYAML, nil
 		},
-	)
+	); err != nil {
+		return err
+	}
+	{{- end}}
+	{{- if .GenerateDocResource}}
+	// Register documentation resource
+	if err := registerFunc(
+		"docs://{{.CRD.Group}}/{{.CRD.Version}}/{{.CRD.Kind}}",
+		"{{.CRD.Kind}} Documentation",
+		"text/markdown",
+		func(_ context.Context) (string, error) {
+			return embedded{{.CRD.Kind}}Documentation, nil
+		},
+	); err != nil {
+		return err
+	}
+	{{- end}}
+	return nil
 }
+{{- if .GenerateCRDResource}}
 
 // embedded{{.CRD.Kind}}CRDYAML contains the complete CRD YAML definition
 const embedded{{.CRD.Kind}}CRDYAML = `{{.CRD.YAMLContent}}`
+{{- end}}
+{{- if .GenerateDocResource}}
+
+// embedded{{.CRD.Kind}}Documentation contains the embedded documentation
+const embedded{{.CRD.Kind}}Documentation = `{{.CRD.DocContent}}`
+{{- end}}
 {{- end}}
 
 {{range $operation := .Operations}}

@@ -5,6 +5,7 @@ package analyzer
 import (
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strings"
 
@@ -56,6 +57,9 @@ type CRDInfo struct {
 
 	// Original YAML content for embedding as MCP resource
 	YAMLContent string
+
+	// Documentation content for embedding as MCP resource
+	DocContent string
 }
 
 // ParseCRDFromFile parses a CRD from a YAML file
@@ -235,4 +239,44 @@ func (info *CRDInfo) HasShortNames() bool {
 // GetGroupVersionKind returns the full GroupVersionKind string
 func (info *CRDInfo) GetGroupVersionKind() string {
 	return fmt.Sprintf("%s/%s, Kind=%s", info.Group, info.Version, info.Kind)
+}
+
+// LoadDocumentationContent loads documentation content from a file path or URL.
+// It handles both local files and HTTP(S) URLs.
+// The content is escaped for embedding in Go string literals.
+func LoadDocumentationContent(source string) (string, error) {
+	var content []byte
+	var err error
+
+	// Check if source is an HTTP(S) URL
+	if strings.HasPrefix(source, "https://") || strings.HasPrefix(source, "http://") {
+		// Download from URL
+		//nolint:gosec // G107: Variable URL is expected - this is for downloading documentation at generation time
+		resp, err := http.Get(source)
+		if err != nil {
+			return "", fmt.Errorf("failed to download documentation from %s: %w", source, err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+
+		if resp.StatusCode != http.StatusOK {
+			return "", fmt.Errorf("failed to download documentation from %s: HTTP %d", source, resp.StatusCode)
+		}
+
+		content, err = io.ReadAll(resp.Body)
+		if err != nil {
+			return "", fmt.Errorf("failed to read documentation from %s: %w", source, err)
+		}
+	} else {
+		// Read from local file
+		content, err = os.ReadFile(source)
+		if err != nil {
+			return "", fmt.Errorf("failed to read documentation file %s: %w", source, err)
+		}
+	}
+
+	// Escape backticks to avoid breaking Go raw string literals
+	docContent := string(content)
+	docContent = strings.ReplaceAll(docContent, "`", "` + \"`\" + `")
+
+	return docContent, nil
 }
