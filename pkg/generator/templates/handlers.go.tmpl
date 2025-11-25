@@ -8,6 +8,7 @@ import (
 	internalk8s "github.com/containers/kubernetes-mcp-server/pkg/kubernetes"
 	"github.com/containers/kubernetes-mcp-server/pkg/output"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/yaml"
 )
 
 {{range $operation := .Operations}}
@@ -115,17 +116,21 @@ func handle{{.CRD.Kind}}List(params api.ToolHandlerParams) (*api.ToolCallResult,
 func handle{{.CRD.Kind}}Create(params api.ToolHandlerParams) (*api.ToolCallResult, error) {
 	args := params.GetArguments()
 
-	resource := args["resource"]
-	if resource == nil {
-		return api.NewToolCallResult("", errors.New("failed to create {{.CRD.Kind | ToLower}}, missing argument resource")), nil
+	argsData := args["args"]
+	if argsData == nil {
+		return api.NewToolCallResult("", errors.New("failed to create {{.CRD.Kind | ToLower}}, missing argument args")), nil
 	}
 
-	resourceStr, ok := resource.(string)
-	if !ok {
-		return api.NewToolCallResult("", fmt.Errorf("resource is not a string")), nil
+	// Convert structured input to YAML
+	yamlBytes, err := yaml.Marshal(argsData)
+	if err != nil {
+		return api.NewToolCallResult("", fmt.Errorf("failed to marshal {{.CRD.Kind | ToLower}}: %v", err)), nil
 	}
 
-	ret, err := params.ResourcesCreateOrUpdate(params, resourceStr)
+	// Add apiVersion and kind to the YAML
+	resourceYAML := fmt.Sprintf("apiVersion: {{.CRD.Group}}/{{.CRD.Version}}\nkind: {{.CRD.Kind}}\n%s", string(yamlBytes))
+
+	ret, err := params.ResourcesCreateOrUpdate(params, resourceYAML)
 	if err != nil {
 		return api.NewToolCallResult("", fmt.Errorf("failed to create {{.CRD.Kind | ToLower}}: %v", err)), nil
 	}
@@ -143,17 +148,21 @@ func handle{{.CRD.Kind}}Create(params api.ToolHandlerParams) (*api.ToolCallResul
 func handle{{.CRD.Kind}}Update(params api.ToolHandlerParams) (*api.ToolCallResult, error) {
 	args := params.GetArguments()
 
-	resource := args["resource"]
-	if resource == nil {
-		return api.NewToolCallResult("", errors.New("failed to update {{.CRD.Kind | ToLower}}, missing argument resource")), nil
+	argsData := args["args"]
+	if argsData == nil {
+		return api.NewToolCallResult("", errors.New("failed to update {{.CRD.Kind | ToLower}}, missing argument args")), nil
 	}
 
-	resourceStr, ok := resource.(string)
-	if !ok {
-		return api.NewToolCallResult("", fmt.Errorf("resource is not a string")), nil
+	// Convert structured input to YAML
+	yamlBytes, err := yaml.Marshal(argsData)
+	if err != nil {
+		return api.NewToolCallResult("", fmt.Errorf("failed to marshal {{.CRD.Kind | ToLower}}: %v", err)), nil
 	}
 
-	ret, err := params.ResourcesCreateOrUpdate(params, resourceStr)
+	// Add apiVersion and kind to the YAML
+	resourceYAML := fmt.Sprintf("apiVersion: {{.CRD.Group}}/{{.CRD.Version}}\nkind: {{.CRD.Kind}}\n%s", string(yamlBytes))
+
+	ret, err := params.ResourcesCreateOrUpdate(params, resourceYAML)
 	if err != nil {
 		return api.NewToolCallResult("", fmt.Errorf("failed to update {{.CRD.Kind | ToLower}}: %v", err)), nil
 	}
